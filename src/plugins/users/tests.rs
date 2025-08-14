@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // ...existing code...
     use crate::db;
     use crate::kernel::build_app;
     use crate::plugins::health::HealthPlugin;
@@ -16,7 +16,6 @@ mod tests {
     struct RespUser {
         id: uuid::Uuid,
         username: String,
-        email: String,
     }
 
     // Full CRUD flow against a test Postgres database.
