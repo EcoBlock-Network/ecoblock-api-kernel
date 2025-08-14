@@ -1,21 +1,10 @@
 use reqwest::StatusCode;
 use serde_json::Value;
 use std::env;
-use std::process::{Child, Command};
-use std::io::BufRead;
-// ...existing code...
+use tokio::net::TcpListener;
 
-// start app as background process for integration test
-async fn spawn_server(database_url: &str) -> Child {
-    // pick a random free port by asking the OS
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind ephemeral port");
-    let port = listener.local_addr().unwrap().port();
-    drop(listener);
-
-    let mut cmd = Command::new("cargo");
-    cmd.arg("run").env("DATABASE_URL", database_url).env("PORT", port.to_string()).stdout(std::process::Stdio::piped());
-    cmd.spawn().expect("failed to spawn server")
-}
+use ecoblock_api_kernel::db;
+use ecoblock_api_kernel::kernel::build_app;
 
 #[tokio::test]
 async fn integration_crud_flow() -> anyhow::Result<()> {
@@ -30,36 +19,26 @@ async fn integration_crud_flow() -> anyhow::Result<()> {
     let db_name = test_db.rsplit('/').next().unwrap().split('?').next().unwrap();
 
     // drop/create
-    let _ = Command::new("psql").arg(&maintenance_url).arg("-c").arg(format!("DROP DATABASE IF EXISTS \"{}\"", db_name)).status();
-    let _ = Command::new("psql").arg(&maintenance_url).arg("-c").arg(format!("CREATE DATABASE \"{}\"", db_name)).status();
-    let _ = Command::new("psql").arg(&test_db).arg("-c").arg("CREATE EXTENSION IF NOT EXISTS pgcrypto;").status();
+    let _ = std::process::Command::new("psql").arg(&maintenance_url).arg("-c").arg(format!("DROP DATABASE IF EXISTS \"{}\"", db_name)).status();
+    let _ = std::process::Command::new("psql").arg(&maintenance_url).arg("-c").arg(format!("CREATE DATABASE \"{}\"", db_name)).status();
+    let _ = std::process::Command::new("psql").arg(&test_db).arg("-c").arg("CREATE EXTENSION IF NOT EXISTS pgcrypto;").status();
 
-    // spawn server on an ephemeral port and capture stdout to read listening address
-    let mut child = spawn_server(&test_db).await;
-    // read stdout to find the listening address
-    let stdout = child.stdout.take().expect("child had no stdout");
-    let mut reader = std::io::BufReader::new(stdout);
-    let mut line = String::new();
-    let mut base = String::new();
-    // read lines until we find "listening on"
-    loop {
-        line.clear();
-        let n = reader.read_line(&mut line).unwrap_or(0);
-        if n == 0 { break; }
-        if line.contains("listening on") {
-            if let Some(idx) = line.rfind(':') {
-                let port = line[idx+1..].trim();
-                base = format!("http://127.0.0.1:{}", port);
-                break;
-            }
-        }
-    }
+    // init DB and run migrations in-process
+    let pool = db::init_db(&test_db).await?;
 
-    if base.is_empty() {
-        // fallback
-        base = "http://127.0.0.1:3000".to_string();
-    }
+    // build app with plugins
+    let users_plugin = ecoblock_api_kernel::plugins::users::UsersPlugin::new(pool.clone());
+    let plugins: Vec<Box<dyn ecoblock_api_kernel::kernel::Plugin>> = vec![Box::new(ecoblock_api_kernel::plugins::health::HealthPlugin), Box::new(users_plugin)];
+    let app = build_app(&plugins).await;
 
+    // bind to ephemeral port and spawn server
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let addr = listener.local_addr()?;
+    let server_handle = tokio::spawn(async move {
+        axum::serve(listener, app).await.expect("server error");
+    });
+
+    let base = format!("http://{}", addr);
     let client = reqwest::Client::new();
 
     // create
@@ -96,7 +75,8 @@ async fn integration_crud_flow() -> anyhow::Result<()> {
     let del = client.delete(&format!("{}/users/{}", base, id)).send().await?;
     assert_eq!(del.status(), StatusCode::NO_CONTENT);
 
-    // teardown
-    let _ = child.kill();
+    // stop server
+    server_handle.abort();
+    let _ = server_handle.await;
     Ok(())
 }
