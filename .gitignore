@@ -1,0 +1,35 @@
+/target/
+**/*.rs.bk
+# If this is a binary crate you may want to commit Cargo.lock; adjust as needed
+# Cargo.lock
+
+# VS Code
+.vscode/
+
+# JetBrains
+.idea/
+
+# macOS
+.DS_Store
+
+# Editor swap / temp files
+*~
+*.swp
+*.swx
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Rust build artefacts
+**/*.rmeta
+**/*.rlib
+
+# Coverage
+coverage/
+
+# Misc
+node_modules/
