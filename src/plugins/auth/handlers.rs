@@ -19,6 +19,7 @@ struct Claims {
 }
 
 /// Extractor that validates a Bearer JWT and returns the user's UUID (from `sub`).
+#[derive(Clone)]
 pub struct AuthUser {
     pub user_id: uuid::Uuid,
 }
