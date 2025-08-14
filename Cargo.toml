@@ -21,3 +21,7 @@ bcrypt = "0.14"
 uuid = { version = "1", features = ["serde", "v4"] }
 regex = "1"
 tokio-test = { version = "0.4", optional = true }
+
+[dev-dependencies]
+reqwest = { version = "0.11", features = ["json", "blocking", "multipart"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

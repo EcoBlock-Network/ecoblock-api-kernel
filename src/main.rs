@@ -1,5 +1,6 @@
 mod kernel;
 mod plugins;
+mod http_error;
 
 use axum::Router;
 use kernel::{build_app, Plugin};
@@ -26,7 +27,8 @@ async fn main() -> anyhow::Result<()> {
 
     let app: Router = build_app(&plugins_vec).await;
 
-    let addr: SocketAddr = "0.0.0.0:3000".parse()?;
+    let port: u16 = env::var("PORT").ok().and_then(|s| s.parse().ok()).unwrap_or(3000);
+    let addr: SocketAddr = format!("0.0.0.0:{}", port).parse()?;
     let listener = TcpListener::bind(addr).await?;
     tracing::info!("listening on {}", addr);
 
