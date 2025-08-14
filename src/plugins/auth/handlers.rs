@@ -76,8 +76,8 @@ pub async fn login(State(pool): State<PgPool>, Json(payload): Json<LoginRequest>
         return Err(AppError::new(StatusCode::UNAUTHORIZED, "invalid username or password").with_code("invalid_credentials"));
     }
 
-    // create JWT
-    let secret = env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
+    // create JWT: JWT_SECRET must be configured
+    let secret = env::var("JWT_SECRET").map_err(|_| AppError::new(StatusCode::INTERNAL_SERVER_ERROR, "JWT_SECRET not configured").with_code("config_error"))?;
     let exp = (chrono::Utc::now() + chrono::Duration::hours(24)).timestamp() as usize;
     let claims = Claims { sub: id.to_string(), exp };
     let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_bytes())).map_err(|e| AppError::new(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
