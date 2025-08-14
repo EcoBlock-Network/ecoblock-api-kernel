@@ -5,6 +5,7 @@ mod http_error;
 use axum::Router;
 use kernel::{build_app, Plugin};
 use plugins::health::HealthPlugin;
+use plugins::auth::AuthPlugin;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use dotenvy::dotenv;
@@ -23,7 +24,8 @@ async fn main() -> anyhow::Result<()> {
 
     // instantiate plugins
     let users_plugin = plugins::users::UsersPlugin::new(_pool.clone());
-    let plugins_vec: Vec<Box<dyn Plugin>> = vec![Box::new(HealthPlugin), Box::new(users_plugin)];
+    let auth_plugin = AuthPlugin::new(_pool.clone());
+    let plugins_vec: Vec<Box<dyn Plugin>> = vec![Box::new(HealthPlugin), Box::new(users_plugin), Box::new(auth_plugin)];
 
     let app: Router = build_app(&plugins_vec).await;
 

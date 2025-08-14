@@ -21,6 +21,11 @@ impl AppError {
     pub fn new(status: StatusCode, message: impl Into<String>) -> Self {
     Self { status, message: message.into(), code: None }
     }
+    /// Attach a machine-readable code to the error and return ownership.
+    pub fn with_code(mut self, code: impl Into<String>) -> Self {
+        self.code = Some(code.into());
+        self
+    }
 }
 
 impl IntoResponse for AppError {
