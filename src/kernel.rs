@@ -16,10 +16,10 @@ pub trait Plugin: Send + Sync {
 }
 
 /// Builds the application router by mounting each plugin under `/{plugin.name()}`.
-pub async fn build_app(plugins: Vec<Box<dyn Plugin>>) -> Router {
+pub async fn build_app(plugins: &Vec<Box<dyn Plugin>>) -> Router {
     let mut app = Router::new();
 
-    for plugin in &plugins {
+    for plugin in plugins.iter() {
         info!("starting plugin {}", plugin.name());
         plugin.on_start().await;
         let router = plugin.router().await;

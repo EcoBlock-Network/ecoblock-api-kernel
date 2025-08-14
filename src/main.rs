@@ -22,17 +22,21 @@ async fn main() -> anyhow::Result<()> {
 
     // instantiate plugins
     let users_plugin = plugins::users::UsersPlugin::new(_pool.clone());
-    let plugins: Vec<Box<dyn Plugin>> = vec![Box::new(HealthPlugin), Box::new(users_plugin)];
+    let plugins_vec: Vec<Box<dyn Plugin>> = vec![Box::new(HealthPlugin), Box::new(users_plugin)];
 
-    let app: Router = build_app(plugins).await;
+    let app: Router = build_app(&plugins_vec).await;
 
     let addr: SocketAddr = "0.0.0.0:3000".parse()?;
     let listener = TcpListener::bind(addr).await?;
     tracing::info!("listening on {}", addr);
 
     axum::serve(listener, app)
-        .with_graceful_shutdown(async {
+        .with_graceful_shutdown(async move {
             let _ = tokio::signal::ctrl_c().await;
+            // call plugin shutdown hooks
+            for p in plugins_vec.iter() {
+                p.on_shutdown().await;
+            }
         })
         .await?;
 
