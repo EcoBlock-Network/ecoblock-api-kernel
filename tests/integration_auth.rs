@@ -5,14 +5,23 @@ use std::process::{Child, Command};
 use std::io::BufRead;
 
 // reuse spawn_server logic from integration_http.rs
-async fn spawn_server(database_url: &str) -> Child {
+// now returns the Child and the JWT secret used so tests are self-contained
+async fn spawn_server(database_url: &str) -> (Child, String) {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind ephemeral port");
     let port = listener.local_addr().unwrap().port();
     drop(listener);
 
+    // generate a per-test secret
+    let secret = uuid::Uuid::new_v4().to_string();
+
     let mut cmd = Command::new("cargo");
-    cmd.arg("run").env("DATABASE_URL", database_url).env("PORT", port.to_string()).stdout(std::process::Stdio::piped());
-    cmd.spawn().expect("failed to spawn server")
+    cmd.arg("run")
+        .env("DATABASE_URL", database_url)
+        .env("PORT", port.to_string())
+        .env("JWT_SECRET", &secret)
+        .stdout(std::process::Stdio::piped());
+    let child = cmd.spawn().expect("failed to spawn server");
+    (child, secret)
 }
 
 #[tokio::test]
@@ -31,8 +40,8 @@ async fn integration_auth_flow() -> anyhow::Result<()> {
     let _ = Command::new("psql").arg(&maintenance_url).arg("-c").arg(format!("CREATE DATABASE \"{}\"", db_name)).status();
     let _ = Command::new("psql").arg(&test_db).arg("-c").arg("CREATE EXTENSION IF NOT EXISTS pgcrypto;").status();
 
-    // spawn server and read base URL
-    let mut child = spawn_server(&test_db).await;
+    // spawn server and read base URL. We receive back the secret used by the server
+    let (mut child, jwt_secret) = spawn_server(&test_db).await;
     let stdout = child.stdout.take().expect("child had no stdout");
     let mut reader = std::io::BufReader::new(stdout);
     let mut line = String::new();
@@ -60,6 +69,7 @@ async fn integration_auth_flow() -> anyhow::Result<()> {
         .await?;
     assert_eq!(create.status(), StatusCode::OK);
     let created: Value = create.json().await?;
+    let created_id = created["id"].as_str().unwrap().to_string();
 
     // login
     let login = client.post(&format!("{}/auth/login", base))
@@ -69,6 +79,12 @@ async fn integration_auth_flow() -> anyhow::Result<()> {
     assert_eq!(login.status(), StatusCode::OK);
     let token_body: Value = login.json().await?;
     let token = token_body["token"].as_str().unwrap();
+
+    // decode token and assert sub equals created id
+    #[derive(serde::Deserialize)]
+    struct Claims { sub: String }
+    let token_data = jsonwebtoken::decode::<Claims>(token, &jsonwebtoken::DecodingKey::from_secret(jwt_secret.as_bytes()), &jsonwebtoken::Validation::default())?;
+    assert_eq!(token_data.claims.sub, created_id);
 
     // whoami
     let who = client.get(&format!("{}/auth/whoami", base))
