@@ -6,6 +6,8 @@ use axum::Router;
 use kernel::{build_app, Plugin};
 use plugins::health::HealthPlugin;
 use plugins::auth::AuthPlugin;
+use crate::plugins::communication::blog::plugin::BlogPlugin;
+use crate::plugins::communication::stories::plugin::StoriesPlugin;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use dotenvy::dotenv;
@@ -25,7 +27,15 @@ async fn main() -> anyhow::Result<()> {
     // instantiate plugins
     let users_plugin = plugins::users::UsersPlugin::new(_pool.clone());
     let auth_plugin = AuthPlugin::new(_pool.clone());
-    let plugins_vec: Vec<Box<dyn Plugin>> = vec![Box::new(HealthPlugin), Box::new(users_plugin), Box::new(auth_plugin)];
+    let blog_plugin = BlogPlugin::new(_pool.clone());
+    let stories_plugin = StoriesPlugin::new(_pool.clone());
+    let plugins_vec: Vec<Box<dyn Plugin>> = vec![
+        Box::new(HealthPlugin),
+        Box::new(users_plugin),
+        Box::new(auth_plugin),
+        Box::new(blog_plugin),
+        Box::new(stories_plugin),
+    ];
 
     let app: Router = build_app(&plugins_vec).await;
 
