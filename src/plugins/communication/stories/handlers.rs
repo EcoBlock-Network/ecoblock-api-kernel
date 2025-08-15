@@ -50,7 +50,7 @@ pub async fn list_stories(Extension(pool): Extension<PgPool>, axum::extract::Que
         filters.push_str(&format!(" AND is_active = {}", if is_active { "true" } else { "false" }));
     }
     // parameterized queries for safety
-    let rows = match (&q.is_active, &q.created_by) {
+        let _rows = match (&q.is_active, &q.created_by) {
         (None, None) => sqlx::query("SELECT id, title, media_url, caption, is_active, created_at, expires_at, created_by FROM stories WHERE 1=1 ORDER BY created_at DESC LIMIT $1 OFFSET $2")
             .bind(per_page as i64)
             .bind(offset)
@@ -119,7 +119,9 @@ pub async fn list_stories(Extension(pool): Extension<PgPool>, axum::extract::Que
         (Some(is_active), Some(created_by)) => sqlx::query_scalar("SELECT COUNT(*) FROM stories WHERE is_active = $1 AND created_by = $2").bind(*is_active).bind(created_by).fetch_one(&pool).await.map_err(AppError::from)?,
     };
 
-    Ok(Json(json!({ "items": items, "page": page, "per_page": per_page, "total": total })))
+    let fetched = items.len() as i64;
+    let has_more = offset + fetched < total;
+    Ok(Json(json!({ "items": items, "page": page, "per_page": per_page, "total": total, "has_more": has_more })))
 }
 
 pub async fn update_story(Extension(pool): Extension<PgPool>, Path(id): Path<uuid::Uuid>, Json(payload): Json<StoryUpdate>) -> Result<Json<StoryDto>, AppError> {

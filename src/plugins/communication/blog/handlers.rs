@@ -91,7 +91,9 @@ pub async fn list_blogs(Extension(pool): Extension<PgPool>, axum::extract::Query
         (Some(is_active), Some(author)) => sqlx::query_scalar("SELECT COUNT(*) FROM blogs WHERE is_active = $1 AND author = $2").bind(is_active).bind(author).fetch_one(&pool).await.map_err(AppError::from)?,
     };
 
-    Ok(Json(json!({ "items": items, "page": page, "per_page": per_page, "total": total })))
+    let fetched = items.len() as i64;
+    let has_more = offset + fetched < total;
+    Ok(Json(json!({ "items": items, "page": page, "per_page": per_page, "total": total, "has_more": has_more })))
 }
 
 pub async fn update_blog(Extension(pool): Extension<PgPool>, Path(id): Path<uuid::Uuid>, Json(payload): Json<BlogUpdate>) -> Result<Json<BlogDto>, AppError> {

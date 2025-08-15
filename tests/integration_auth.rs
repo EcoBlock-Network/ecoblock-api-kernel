@@ -28,6 +28,14 @@ impl Drop for TestDbGuard {
         let _ = Command::new("psql")
             .arg(&self.maintenance_url)
             .arg("-c")
+            .arg(format!(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{}' AND pid <> pg_backend_pid();",
+                self.unique_db
+            ))
+            .status();
+        let _ = Command::new("psql")
+            .arg(&self.maintenance_url)
+            .arg("-c")
             .arg(format!("DROP DATABASE IF EXISTS \"{}\"", self.unique_db))
             .status();
     }

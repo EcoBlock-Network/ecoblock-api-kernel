@@ -2,12 +2,12 @@ use axum::{Router, routing::get, routing::post, routing::put, routing::delete, E
 use crate::kernel::Plugin;
 use crate::plugins::communication::stories::handlers::*;
 use sqlx::PgPool;
-use std::sync::Arc;
 
-pub struct StoriesPlugin { pub pool: Arc<PgPool> }
+pub struct StoriesPlugin { pub pool: PgPool }
 
 impl StoriesPlugin {
-    pub fn new(pool: PgPool) -> Self { Self { pool: Arc::new(pool) } }
+    #[allow(dead_code)]
+    pub fn new(pool: PgPool) -> Self { Self { pool } }
 }
 
 #[async_trait::async_trait]

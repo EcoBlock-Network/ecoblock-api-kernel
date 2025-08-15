@@ -6,6 +6,7 @@ use std::process::Command;
 
 use ecoblock_api_kernel::db;
 use ecoblock_api_kernel::kernel::build_app;
+use ecoblock_api_kernel::plugins::communication::blog::plugin::BlogPlugin;
 
 struct TestDbGuard {
     maintenance_url: String,
@@ -20,7 +21,6 @@ impl TestDbGuard {
 
 impl Drop for TestDbGuard {
     fn drop(&mut self) {
-        // Terminate other connections to the test database, then drop it.
         let _ = Command::new("psql")
             .arg(&self.maintenance_url)
             .arg("-c")
@@ -37,7 +37,7 @@ impl Drop for TestDbGuard {
     }
 }
 
-async fn setup_http_and_spawn(test_db: &str) -> anyhow::Result<(String, tokio::task::JoinHandle<()>, String, TestDbGuard)> {
+async fn setup_http_and_spawn(test_db: &str) -> anyhow::Result<(String, tokio::task::JoinHandle<()>, TestDbGuard)> {
     let maintenance = test_db.to_string();
     let mut maintenance_url = maintenance.clone();
     if let Some(idx) = maintenance_url.rfind('/') {
@@ -57,8 +57,8 @@ async fn setup_http_and_spawn(test_db: &str) -> anyhow::Result<(String, tokio::t
     let guard = TestDbGuard::new(maintenance_url.clone(), unique_db.clone());
 
     let pool = db::init_db(&unique_db_url).await?;
-    let users_plugin = ecoblock_api_kernel::plugins::users::UsersPlugin::new(pool.clone());
-    let plugins: Vec<Box<dyn ecoblock_api_kernel::kernel::Plugin>> = vec![Box::new(ecoblock_api_kernel::plugins::health::HealthPlugin), Box::new(users_plugin)];
+    let blog_plugin = BlogPlugin::new(pool.clone());
+    let plugins: Vec<Box<dyn ecoblock_api_kernel::kernel::Plugin>> = vec![Box::new(ecoblock_api_kernel::plugins::health::HealthPlugin), Box::new(blog_plugin)];
     let app = build_app(&plugins).await;
 
     let listener = TcpListener::bind("127.0.0.1:0").await?;
@@ -68,47 +68,54 @@ async fn setup_http_and_spawn(test_db: &str) -> anyhow::Result<(String, tokio::t
     });
 
     let base = format!("http://{}", addr);
-    Ok((base, server_handle, maintenance_url, guard))
+    Ok((base, server_handle, guard))
 }
 
 #[tokio::test]
-async fn integration_crud_flow() -> anyhow::Result<()> {
+async fn communication_blog_crud_and_list() -> anyhow::Result<()> {
     let test_db = env::var("TEST_DATABASE_URL").unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/ecoblock_test".to_string());
-    let (base, server_handle, _maintenance_url, _guard) = setup_http_and_spawn(&test_db).await?;
+    let (base, server_handle, _guard) = setup_http_and_spawn(&test_db).await?;
     let client = reqwest::Client::new();
 
-    // create
-    let create = client.post(&format!("{}/users", base))
-        .json(&serde_json::json!({"username":"ituser","email":"it@example.com","password":"password123"}))
+    // create blog
+    let create = client.post(&format!("{}/communication/blog", base))
+        .json(&serde_json::json!({"title":"Hello","slug":"hello","body":"body","author":"alice"}))
         .send()
         .await?;
-    assert_eq!(create.status(), StatusCode::OK);
-    let created: Value = create.json().await?;
-    let id = created["id"].as_str().unwrap();
+    // consume response body into a string so we can log it and still parse JSON
+    let status = create.status();
+    let body_text = create.text().await.unwrap_or_else(|_| "<failed to read body>".to_string());
+    if status != StatusCode::OK {
+        eprintln!("create failed: status={} body={} ", status, body_text);
+        assert_eq!(status, StatusCode::OK);
+    }
+    let created: Value = serde_json::from_str(&body_text)?;
+    let id = created["id"].as_str().unwrap().to_string();
 
-    // duplicate create -> expect 409 with code
-    let dup = client.post(&format!("{}/users", base))
-        .json(&serde_json::json!({"username":"ituser","email":"it@example.com","password":"password123"}))
-        .send()
-        .await?;
-    assert_eq!(dup.status(), StatusCode::CONFLICT);
-    let err: Value = dup.json().await?;
-    assert!(err.get("code").is_some());
+    // list
+    let list = client.get(&format!("{}/communication/blog", base)).send().await?;
+    assert_eq!(list.status(), StatusCode::OK);
+    let list_body: Value = list.json().await?;
+    assert!(list_body.get("items").is_some());
+    assert_eq!(list_body.get("page").and_then(|v| v.as_i64()), Some(1));
+    assert!(list_body.get("per_page").is_some());
+    assert!(list_body.get("total").is_some());
+    assert!(list_body.get("has_more").is_some());
+
+    // filter by author
+    let by_author = client.get(&format!("{}/communication/blog?author=alice", base)).send().await?;
+    assert_eq!(by_author.status(), StatusCode::OK);
 
     // get
-    let list = client.get(&format!("{}/users", base)).send().await?;
-    assert_eq!(list.status(), StatusCode::OK);
-
-    // get by id
-    let one = client.get(&format!("{}/users/{}", base, id)).send().await?;
+    let one = client.get(&format!("{}/communication/blog/{}", base, id)).send().await?;
     assert_eq!(one.status(), StatusCode::OK);
 
     // update
-    let upd = client.put(&format!("{}/users/{}", base, id)).json(&serde_json::json!({"username":"ituser2","email":"it2@example.com"})).send().await?;
+    let upd = client.put(&format!("{}/communication/blog/{}", base, id)).json(&serde_json::json!({"title":"Hello2"})).send().await?;
     assert_eq!(upd.status(), StatusCode::OK);
 
     // delete
-    let del = client.delete(&format!("{}/users/{}", base, id)).send().await?;
+    let del = client.delete(&format!("{}/communication/blog/{}", base, id)).send().await?;
     assert_eq!(del.status(), StatusCode::NO_CONTENT);
 
     server_handle.abort();
