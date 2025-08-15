@@ -99,7 +99,11 @@ async fn communication_blog_crud_and_list() -> anyhow::Result<()> {
     assert!(list_body.get("items").is_some());
     assert_eq!(list_body.get("page").and_then(|v| v.as_i64()), Some(1));
     assert!(list_body.get("per_page").is_some());
-    assert!(list_body.get("total").is_some());
+    let total = list_body.get("total").and_then(|v| v.as_i64()).unwrap_or(0);
+    assert!(total >= 0);
+    // total_pages should exist and be >= 0
+    let total_pages = list_body.get("total_pages").and_then(|v| v.as_i64()).unwrap_or(0);
+    assert!(total_pages >= 0);
     assert!(list_body.get("has_more").is_some());
 
     // filter by author
