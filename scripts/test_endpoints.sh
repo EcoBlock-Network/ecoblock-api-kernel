@@ -30,17 +30,23 @@ http() {
     auth_args=( -H "Authorization: Bearer $TOKEN" )
   fi
 
+  # verbose flag
+  local verbose_flag=()
+  if [[ "${VERBOSE-}" == "1" ]]; then
+    verbose_flag=( -v )
+  fi
+
   local out
   if [[ -n "$data" ]]; then
     # include the status code on the final line
-    out=$(curl -sS -w "\n%{http_code}" -X "$method" "$url" -H "Content-Type: application/json" "${auth_args[@]}" -d "$data" 2>&1) || {
+    out=$(curl -sS "${verbose_flag[@]}" -w "\n%{http_code}" -X "$method" "$url" -H "Content-Type: application/json" "${auth_args[@]}" -d "$data" 2>&1) || {
       # curl failed; print stderr-like output and a sentinel status 000
       echo "$out"
       echo "000"
       return
     }
   else
-    out=$(curl -sS -w "\n%{http_code}" -X "$method" "$url" "${auth_args[@]}" 2>&1) || {
+    out=$(curl -sS "${verbose_flag[@]}" -w "\n%{http_code}" -X "$method" "$url" "${auth_args[@]}" 2>&1) || {
       echo "$out"
       echo "000"
       return
@@ -55,17 +61,12 @@ http() {
 # Works even if body doesn't end with a newline.
 parse_response() {
   local raw="$1"
-  # Use printf to preserve newlines, then extract last line as status and the rest as body
-  RESP_STATUS=$(printf "%s" "$raw" | awk 'END{print $0}')
-  # body is everything except the last line
-  RESP_BODY=$(printf "%s" "$raw" | awk 'NR==1{line=$0; next} { if(NR==2) {body=line"\n"$0; next} else {body=body"\n"$0}} END{ if(NR<=1) {print ""} else { # print all but last line
-    for(i=1;i<NR;i++){ if(i==1) printf "%s", (i==1?lines[i]:lines[i]) }
-  }}')
-  # Fallback parsing (more portable) if awk above didn't work as intended: split by lines
+  # Use tail to get last line as status, sed to remove last line for body
+  RESP_STATUS=$(printf "%s" "$raw" | tail -n1)
+  RESP_BODY=$(printf "%s" "$raw" | sed '$d')
+  # If RESP_STATUS is empty (unexpected), set to 000
   if [[ -z "$RESP_STATUS" ]]; then
-    # safer: get last line and body via tail/sed
-    RESP_STATUS=$(printf "%s" "$raw" | tail -n1)
-    RESP_BODY=$(printf "%s" "$raw" | sed '$d')
+    RESP_STATUS="000"
   fi
 }
 

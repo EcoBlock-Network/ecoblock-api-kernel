@@ -37,6 +37,10 @@ async fn main() -> anyhow::Result<()> {
         Box::new(stories_plugin),
     ];
 
+    // Log the list of plugins that will be mounted (helpful for debugging)
+    let plugin_names: Vec<&'static str> = plugins_vec.iter().map(|p| p.name()).collect();
+    tracing::info!("mounting plugins: {:?}", plugin_names);
+
     let app: Router = build_app(&plugins_vec).await;
 
     let port: u16 = env::var("PORT").ok().and_then(|s| s.parse().ok()).unwrap_or(3000);
