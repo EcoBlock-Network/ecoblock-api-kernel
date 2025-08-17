@@ -17,7 +17,7 @@ impl UsersPlugin {
 #[async_trait::async_trait]
 impl Plugin for UsersPlugin {
     async fn router(&self) -> Router {
-        // create separate clones so each closure takes ownership of its clone
+        
         let p_create = self.pool.clone();
         let p_list = self.pool.clone();
         let p_get = self.pool.clone();

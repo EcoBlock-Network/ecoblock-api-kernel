@@ -30,23 +30,23 @@ http() {
     auth_args=( -H "Authorization: Bearer $TOKEN" )
   fi
 
-  # verbose flag
-  local verbose_flag=()
-  if [[ "${VERBOSE-}" == "1" ]]; then
-    verbose_flag=( -v )
+  # build optional verbose flag
+  local verbose_args=()
+  if [[ "${VERBOSE:-0}" == "1" ]]; then
+    verbose_args=( -v )
   fi
 
   local out
   if [[ -n "$data" ]]; then
     # include the status code on the final line
-    out=$(curl -sS "${verbose_flag[@]}" -w "\n%{http_code}" -X "$method" "$url" -H "Content-Type: application/json" "${auth_args[@]}" -d "$data" 2>&1) || {
+    out=$(curl -sS "${verbose_args[@]}" -w "\n%{http_code}" -X "$method" "$url" -H "Content-Type: application/json" "${auth_args[@]}" -d "$data" 2>&1) || {
       # curl failed; print stderr-like output and a sentinel status 000
       echo "$out"
       echo "000"
       return
     }
   else
-    out=$(curl -sS "${verbose_flag[@]}" -w "\n%{http_code}" -X "$method" "$url" "${auth_args[@]}" 2>&1) || {
+    out=$(curl -sS "${verbose_args[@]}" -w "\n%{http_code}" -X "$method" "$url" "${auth_args[@]}" 2>&1) || {
       echo "$out"
       echo "000"
       return

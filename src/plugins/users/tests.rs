@@ -1,12 +1,12 @@
 #[cfg(test)]
 mod tests {
-    // ...existing code...
+    
     use crate::db;
     use crate::kernel::build_app;
     use crate::plugins::health::HealthPlugin;
     use axum::body::Body;
     use axum::http::{Request, Method, StatusCode};
-    use tower::util::ServiceExt; // for oneshot
+    use tower::util::ServiceExt; 
     use serde::Deserialize;
     use serde_json::json;
     use sqlx::PgPool;
@@ -18,31 +18,31 @@ mod tests {
         username: String,
     }
 
-    // Full CRUD flow against a test Postgres database.
-    // Requires a local Postgres instance accessible with the credentials in
-    // TEST_DATABASE_URL or defaults to postgres://postgres:postgres@localhost:5432/ecoblock_test
+    
+    
+    
     #[tokio::test]
     async fn users_crud_flow() -> anyhow::Result<()> {
-        // test db url (can be overridden in CI)
+        
         let test_db_url = env::var("TEST_DATABASE_URL")
             .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/ecoblock_test".to_string());
 
-        // derive maintenance URL (connect to 'postgres' database) to create/drop test DB
+        
         let mut maintenance_url = test_db_url.clone();
         if let Some(idx) = maintenance_url.rfind('/') {
             maintenance_url.replace_range(idx + 1.., "postgres");
         }
 
-        // database name
+        
         let db_name = test_db_url.rsplit('/').next().unwrap().split('?').next().unwrap();
 
-        // connect to maintenance DB and recreate test DB
+        
     let maint_pool = sqlx::postgres::PgPoolOptions::new()
             .max_connections(1)
             .connect(&maintenance_url)
             .await?;
 
-        // drop/create fresh DB for deterministic tests
+        
         let _ = sqlx::query(&format!("DROP DATABASE IF EXISTS \"{}\"", db_name))
             .execute(&maint_pool)
             .await;
@@ -50,7 +50,7 @@ mod tests {
             .execute(&maint_pool)
             .await?;
 
-        // ensure pgcrypto extension is available in the new DB (connect directly)
+        
     let test_pool_for_ext = sqlx::postgres::PgPoolOptions::new()
             .max_connections(1)
             .connect(&test_db_url)
@@ -59,15 +59,15 @@ mod tests {
             .execute(&test_pool_for_ext)
             .await;
 
-        // run migrations and get pool
+        
         let pool: PgPool = db::init_db(&test_db_url).await?;
 
-        // build plugins and application router
+        
         let users_plugin = crate::plugins::users::UsersPlugin::new(pool.clone());
         let plugins: Vec<Box<dyn crate::kernel::Plugin>> = vec![Box::new(HealthPlugin), Box::new(users_plugin)];
         let app = build_app(&plugins).await;
 
-        // quick health check to ensure plugins mounted
+        
         let req = Request::builder()
             .method(Method::GET)
             .uri("/health")
@@ -76,7 +76,7 @@ mod tests {
         let resp = app.clone().oneshot(req).await.unwrap();
         eprintln!("health -> {}", resp.status());
 
-        // 1) Create user
+        
         let payload = json!({
             "username": "testuser",
             "email": "test@example.com",
@@ -99,7 +99,7 @@ mod tests {
     assert!(status.is_success());
     let created: RespUser = serde_json::from_slice(&body_bytes)?;
 
-        // 2) List users
+        
         let req = Request::builder()
             .method(Method::GET)
             .uri("/users")
@@ -108,7 +108,7 @@ mod tests {
     let resp = app.clone().oneshot(req).await.unwrap();
     assert!(resp.status().is_success());
 
-        // 3) Get by id
+        
         let req = Request::builder()
             .method(Method::GET)
             .uri(format!("/users/{}", created.id))
@@ -120,7 +120,7 @@ mod tests {
         let got: RespUser = serde_json::from_slice(&body_bytes)?;
         assert_eq!(got.id, created.id);
 
-        // 4) Update user
+        
         let update = json!({ "username": "updated", "email": "new@example.com" });
         let req = Request::builder()
             .method(Method::PUT)
@@ -134,7 +134,7 @@ mod tests {
         let updated: RespUser = serde_json::from_slice(&body_bytes)?;
         assert_eq!(updated.username, "updated");
 
-        // 5) Delete user
+        
         let req = Request::builder()
             .method(Method::DELETE)
             .uri(format!("/users/{}", created.id))
@@ -143,7 +143,7 @@ mod tests {
         let resp = app.clone().oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::NO_CONTENT);
 
-        // 6) Ensure gone
+        
         let req = Request::builder()
             .method(Method::GET)
             .uri(format!("/users/{}", created.id))

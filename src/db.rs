@@ -8,7 +8,7 @@ pub async fn init_db(database_url: &str) -> anyhow::Result<DbPool> {
         .connect(database_url)
         .await?;
 
-    // Run migrations embedded at compile time (migrations/)
+    
     sqlx::migrate!().run(&pool).await?;
 
     Ok(pool)

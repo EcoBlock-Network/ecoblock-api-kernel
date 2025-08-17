@@ -6,7 +6,7 @@ use crate::plugins::communication::blog::models::{BlogCreate, BlogUpdate, BlogDt
 use crate::plugins::communication::shared::ListResponse;
 use sqlx::PgPool;
 
-// Pagination params: page (1-based) and per_page
+
 #[derive(Debug, serde::Deserialize)]
 pub struct ListQuery {
     pub page: Option<u32>,
@@ -92,7 +92,7 @@ pub async fn list_blogs(Extension(pool): Extension<PgPool>, axum::extract::Query
 }
 
 pub async fn update_blog(Extension(pool): Extension<PgPool>, Path(id): Path<uuid::Uuid>, Json(payload): Json<BlogUpdate>) -> Result<Json<BlogDto>, AppError> {
-    // simple update using COALESCE-like pattern
+    
     let dto: BlogDto = sqlx::query_as::<_, BlogDto>("UPDATE blogs SET title = COALESCE($1, title), slug = COALESCE($2, slug), body = COALESCE($3, body), author = COALESCE($4, author), is_active = COALESCE($5, is_active), updated_at = now() WHERE id = $6 RETURNING id, title, slug, body, author, is_active, created_at, updated_at")
         .bind(payload.title)
         .bind(payload.slug)

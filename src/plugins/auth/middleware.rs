@@ -23,7 +23,7 @@ pub async fn require_auth(mut req: Request<Body>, next: Next) -> Result<Response
     let token_data = decode::<ClaimsLite>(token, &DecodingKey::from_secret(secret.as_bytes()), &validation)
         .map_err(|_| AppError::new(StatusCode::UNAUTHORIZED, "invalid token").with_code("invalid_token"))?;
     let user_id = uuid::Uuid::parse_str(&token_data.claims.sub).map_err(|_| AppError::new(StatusCode::UNAUTHORIZED, "invalid token subject").with_code("invalid_token"))?;
-    // insert into extensions for handlers to use
+    
     req.extensions_mut().insert(super::handlers::AuthUser { user_id });
     Ok(next.run(req).await)
 }

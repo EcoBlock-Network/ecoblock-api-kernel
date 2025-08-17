@@ -21,7 +21,7 @@ impl AppError {
     pub fn new(status: StatusCode, message: impl Into<String>) -> Self {
     Self { status, message: message.into(), code: None }
     }
-    /// Attach a machine-readable code to the error and return ownership.
+    
     pub fn with_code(mut self, code: impl Into<String>) -> Self {
         self.code = Some(code.into());
         self
@@ -49,13 +49,13 @@ impl From<SqlxError> for AppError {
             Database(db) => {
                 if let Some(code) = db.code() {
                     if code == "23505" {
-                        // detect constraint name when available
+                        
                         if let Some(cons) = db.constraint() {
                             let code_str = match cons {
                                 "users_username_key" | "users_username_unique" => "duplicate_username",
                                 "users_email_key" | "users_email_unique" => "duplicate_email",
                                 other => {
-                                    // fallback to generic duplicate
+                                    
                                     if other.contains("username") {
                                         "duplicate_username"
                                     } else if other.contains("email") {
