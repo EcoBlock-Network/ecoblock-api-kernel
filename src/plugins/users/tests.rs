@@ -65,7 +65,7 @@ mod tests {
         
         let users_plugin = crate::plugins::users::UsersPlugin::new(pool.clone());
         let plugins: Vec<Box<dyn crate::kernel::Plugin>> = vec![Box::new(HealthPlugin), Box::new(users_plugin)];
-        let app = build_app(&plugins).await;
+    let app = build_app(&plugins, None).await;
 
         
         let req = Request::builder()

@@ -78,7 +78,7 @@ async fn setup_and_spawn(test_db: &str) -> anyhow::Result<(String, tokio::task::
     let users_plugin = ecoblock_api_kernel::plugins::users::UsersPlugin::new(pool.clone());
     let auth_plugin = ecoblock_api_kernel::plugins::auth::AuthPlugin::new(pool.clone());
     let plugins: Vec<Box<dyn ecoblock_api_kernel::kernel::Plugin>> = vec![Box::new(ecoblock_api_kernel::plugins::health::HealthPlugin), Box::new(users_plugin), Box::new(auth_plugin)];
-    let app = build_app(&plugins).await;
+    let app = build_app(&plugins, None).await;
 
     // bind to ephemeral port and spawn server using axum
     let listener = TcpListener::bind("127.0.0.1:0").await?;

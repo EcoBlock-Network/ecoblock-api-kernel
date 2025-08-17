@@ -3,7 +3,7 @@ mod plugins;
 mod http_error;
 
 use axum::Router;
-use axum::middleware::Next;
+// ...existing code... (middleware Next is used in kernel layer)
 use kernel::{build_app, Plugin};
 use plugins::health::HealthPlugin;
 use plugins::auth::AuthPlugin;
@@ -44,30 +44,11 @@ async fn main() -> anyhow::Result<()> {
     let plugin_names: Vec<&'static str> = plugins_vec.iter().map(|p| p.name()).collect();
     tracing::info!("mounting plugins: {:?}", plugin_names);
 
-    let mut app: Router = build_app(&plugins_vec).await;
-    // mount metrics router at /metrics
-    app = app.nest("/metrics", metrics_plugin.router());
+    // build app and pass metrics plugin so each plugin router can be instrumented with route labels
+    let mut app: Router = build_app(&plugins_vec, Some(metrics_plugin.clone())).await;
 
-    // add a middleware to increment Prometheus request counter and record duration
-    let counter = metrics_plugin.request_counter.clone();
-    let histogram = metrics_plugin.request_duration.clone();
-    app = app.layer(axum::middleware::from_fn(move |req: axum::http::Request<axum::body::Body>, next: Next| {
-        let counter = counter.clone();
-        let histogram = histogram.clone();
-        async move {
-            let method = req.method().to_string();
-            let path = req.uri().path().to_string();
-            let start = std::time::Instant::now();
-            let res = next.run(req).await;
-            let elapsed = start.elapsed();
-            let secs = elapsed.as_secs_f64();
-            // observe duration (labels: method, path)
-            histogram.with_label_values(&[&method, &path]).observe(secs);
-            let status = res.status().as_u16().to_string();
-            counter.with_label_values(&[&method, &path, &status]).inc();
-            res
-        }
-    }));
+    // expose metrics at /metrics (not instrumented to avoid double-counting)
+    app = app.nest("/metrics", metrics_plugin.router());
 
     for p in plugins_vec.iter() {
         tracing::info!("mounted plugin: {}", p.name());
