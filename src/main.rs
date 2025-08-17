@@ -48,14 +48,21 @@ async fn main() -> anyhow::Result<()> {
     // mount metrics router at /metrics
     app = app.nest("/metrics", metrics_plugin.router());
 
-    // add a middleware to increment Prometheus request counter (method, path, status)
+    // add a middleware to increment Prometheus request counter and record duration
     let counter = metrics_plugin.request_counter.clone();
+    let histogram = metrics_plugin.request_duration.clone();
     app = app.layer(axum::middleware::from_fn(move |req: axum::http::Request<axum::body::Body>, next: Next| {
         let counter = counter.clone();
+        let histogram = histogram.clone();
         async move {
             let method = req.method().to_string();
             let path = req.uri().path().to_string();
+            let start = std::time::Instant::now();
             let res = next.run(req).await;
+            let elapsed = start.elapsed();
+            let secs = elapsed.as_secs_f64();
+            // observe duration (labels: method, path)
+            histogram.with_label_values(&[&method, &path]).observe(secs);
             let status = res.status().as_u16().to_string();
             counter.with_label_values(&[&method, &path, &status]).inc();
             res

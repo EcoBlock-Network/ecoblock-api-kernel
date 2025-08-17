@@ -1,20 +1,38 @@
 use axum::{routing::get, Router};
-use prometheus::{Encoder, TextEncoder, IntCounterVec, Opts, Registry};
+use prometheus::{Encoder, TextEncoder, IntCounterVec, Opts, Registry, HistogramVec, HistogramOpts};
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct MetricsPlugin {
     registry: Arc<Registry>,
     pub request_counter: Arc<IntCounterVec>,
+    pub request_duration: Arc<HistogramVec>,
 }
 
 impl MetricsPlugin {
     pub fn new() -> Self {
         let registry = Registry::new();
-        let opts = Opts::new("requests_total", "Total HTTP requests");
-        let counter = IntCounterVec::new(opts, &["method", "path", "status"]).expect("counter");
+        let ctr_opts = Opts::new("requests_total", "Total HTTP requests");
+        let counter = IntCounterVec::new(ctr_opts, &["method", "path", "status"]).expect("counter");
         registry.register(Box::new(counter.clone())).ok();
-        MetricsPlugin { registry: Arc::new(registry), request_counter: Arc::new(counter) }
+
+        let hist_opts = HistogramOpts::new("request_duration_seconds", "HTTP request latencies in seconds");
+        let histogram = HistogramVec::new(hist_opts, &["method", "path"]).expect("histogram");
+        registry.register(Box::new(histogram.clone())).ok();
+
+        // register process collector when available (platform/feature gated in prometheus crate)
+        // register process collector only on Linux when the prometheus `process` feature is enabled
+        #[cfg(target_os = "linux")]
+        {
+            let collector = prometheus::process_collector::ProcessCollector::for_self();
+            registry.register(Box::new(collector)).ok();
+        }
+
+        MetricsPlugin {
+            registry: Arc::new(registry),
+            request_counter: Arc::new(counter),
+            request_duration: Arc::new(histogram),
+        }
     }
 
     pub fn router(&self) -> Router {
