@@ -3,15 +3,18 @@ mod plugins;
 mod http_error;
 
 use axum::Router;
+use axum::middleware::Next;
 use kernel::{build_app, Plugin};
 use plugins::health::HealthPlugin;
 use plugins::auth::AuthPlugin;
 use crate::plugins::communication::blog::plugin::BlogPlugin;
 use crate::plugins::communication::stories::plugin::StoriesPlugin;
+use crate::plugins::metrics::MetricsPlugin;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use dotenvy::dotenv;
 use std::env;
+// tower imports intentionally omitted
 
 mod db;
 
@@ -29,6 +32,7 @@ async fn main() -> anyhow::Result<()> {
     let auth_plugin = AuthPlugin::new(_pool.clone());
     let blog_plugin = BlogPlugin::new(_pool.clone());
     let stories_plugin = StoriesPlugin::new(_pool.clone());
+    let metrics_plugin = MetricsPlugin::new();
     let plugins_vec: Vec<Box<dyn Plugin>> = vec![
         Box::new(HealthPlugin),
         Box::new(users_plugin),
@@ -40,7 +44,23 @@ async fn main() -> anyhow::Result<()> {
     let plugin_names: Vec<&'static str> = plugins_vec.iter().map(|p| p.name()).collect();
     tracing::info!("mounting plugins: {:?}", plugin_names);
 
-    let app: Router = build_app(&plugins_vec).await;
+    let mut app: Router = build_app(&plugins_vec).await;
+    // mount metrics router at /metrics
+    app = app.nest("/metrics", metrics_plugin.router());
+
+    // add a middleware to increment Prometheus request counter (method, path, status)
+    let counter = metrics_plugin.request_counter.clone();
+    app = app.layer(axum::middleware::from_fn(move |req: axum::http::Request<axum::body::Body>, next: Next| {
+        let counter = counter.clone();
+        async move {
+            let method = req.method().to_string();
+            let path = req.uri().path().to_string();
+            let res = next.run(req).await;
+            let status = res.status().as_u16().to_string();
+            counter.with_label_values(&[&method, &path, &status]).inc();
+            res
+        }
+    }));
 
     for p in plugins_vec.iter() {
         tracing::info!("mounted plugin: {}", p.name());
