@@ -24,7 +24,7 @@ uuid = { version = "1", features = ["serde", "v4"] }
 regex = "1"
 jsonwebtoken = { version = "8", default-features = true }
 chrono = { version = "0.4", features = ["serde"] }
-base64 = "0.21"
+base64 = "0.22"
 mime_guess = "2.0"
 tokio-test = { version = "0.4", optional = true }
 prometheus = { version = "0.14", features = ["process"] }
