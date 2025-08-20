@@ -14,6 +14,7 @@ pub struct ListQuery {
     pub per_page: Option<u32>,
     pub is_active: Option<bool>,
     pub author: Option<String>,
+    pub q: Option<String>,
 }
 
 pub async fn create_blog(Extension(pool): Extension<PgPool>, Json(payload): Json<BlogCreate>) -> Result<Json<BlogDto>, AppError> {
@@ -46,6 +47,10 @@ pub async fn list_blogs(Extension(pool): Extension<PgPool>, axum::extract::Query
     if let Some(author) = q.author.clone() {
         where_clauses.push(format!("author = ${}", params.len() + 1));
         params.push(Param::Str(author));
+    }
+    if let Some(qs) = q.q.clone() {
+        where_clauses.push(format!("title ILIKE ${}", params.len() + 1));
+        params.push(Param::Str(format!("%{}%", qs)));
     }
 
     let where_sql = if where_clauses.is_empty() { "1=1".to_string() } else { where_clauses.join(" AND ") };

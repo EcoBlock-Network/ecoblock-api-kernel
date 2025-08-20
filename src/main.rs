@@ -8,6 +8,7 @@ use kernel::{build_app, Plugin};
 use plugins::health::HealthPlugin;
 use plugins::auth::AuthPlugin;
 use crate::plugins::communication::blog::plugin::BlogPlugin;
+use crate::plugins::communication::upload as upload_plugin;
 use crate::plugins::communication::stories::plugin::StoriesPlugin;
 use crate::plugins::metrics::MetricsPlugin;
 use crate::plugins::tangle::plugin::TanglePlugin;
@@ -43,6 +44,7 @@ async fn main() -> anyhow::Result<()> {
         Box::new(tangle_plugin),
         Box::new(blog_plugin),
         Box::new(stories_plugin),
+    // upload plugin is mounted separately below because it also needs a static serve
     ];
 
     let plugin_names: Vec<&'static str> = plugins_vec.iter().map(|p| p.name()).collect();
@@ -53,6 +55,37 @@ async fn main() -> anyhow::Result<()> {
 
     // expose metrics at /metrics (not instrumented to avoid double-counting)
     app = app.nest("/metrics", metrics_plugin.router());
+
+    // mount upload route under /communication/upload
+    app = app.nest("/communication/upload", upload_plugin::router());
+
+    // serve uploaded files from data/uploads at /uploads via a small handler
+    async fn serve_upload(axum::extract::Path(path): axum::extract::Path<String>) -> axum::response::Response {
+        let safe = path.replace("..", "");
+        let mut p = std::path::PathBuf::from("data/uploads");
+        p.push(&safe);
+        if !p.exists() {
+            return axum::http::Response::builder()
+                .status(axum::http::StatusCode::NOT_FOUND)
+                .body(axum::body::Body::from("not found"))
+                .unwrap();
+        }
+        match tokio::fs::read(&p).await {
+            Err(e) => axum::http::Response::builder()
+                .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+                .body(axum::body::Body::from(format!("io: {}", e)))
+                .unwrap(),
+            Ok(data) => {
+                let mime = mime_guess::from_path(&p).first_or_octet_stream();
+                axum::http::Response::builder()
+                    .status(axum::http::StatusCode::OK)
+                    .header(axum::http::header::CONTENT_TYPE, mime.as_ref())
+                    .body(axum::body::Body::from(data))
+                    .unwrap()
+            }
+        }
+    }
+    app = app.route("/uploads/*path", axum::routing::get(serve_upload));
 
     for p in plugins_vec.iter() {
         tracing::info!("mounted plugin: {}", p.name());

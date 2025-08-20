@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 
-axum = { version = "0.7", features = ["json", "macros"] }
+axum = { version = "0.7", features = ["json", "macros", "multipart"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
 anyhow = "1"
 serde = { version = "1.0", features = ["derive"] }
@@ -13,8 +13,9 @@ serde_json = "1.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 tower = { version = "0.4", features = ["util"] }
-tower-http = { version = "0.3", features = ["trace", "cors"] }
+tower-http = { version = "0.3", features = ["trace", "cors", "fs"] }
 http = "0.2"
+hyper = "0.14"
 async-trait = "0.1"
 sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-native-tls", "macros", "migrate", "uuid", "chrono"] }
 dotenvy = "0.15"
@@ -24,6 +25,7 @@ regex = "1"
 jsonwebtoken = { version = "8", default-features = true }
 chrono = { version = "0.4", features = ["serde"] }
 base64 = "0.21"
+mime_guess = "2.0"
 tokio-test = { version = "0.4", optional = true }
 prometheus = { version = "0.14", features = ["process"] }
 ed25519-dalek = "1.0.1"
