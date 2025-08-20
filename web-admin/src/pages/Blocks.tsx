@@ -11,6 +11,14 @@ type Block = {
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3000'
 
+function getToken(): string | null {
+  try {
+    return localStorage.getItem('ecoblock_token');
+  } catch (_) {
+    return null;
+  }
+}
+
 export default function Blocks() {
   const [blocks, setBlocks] = useState<Block[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -20,10 +28,12 @@ export default function Blocks() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`${API_BASE}/tangle/blocks`)
+      const headers: Record<string,string> = { 'Accept': 'application/json' }
+      const token = getToken()
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res = await fetch(`${API_BASE}/tangle/blocks`, { headers })
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
       const data = await res.json()
-      // expect { items: [...], total: n } or array
       const items = Array.isArray(data) ? data : data.items ?? data.blocks ?? []
       setBlocks(items)
     } catch (err: any) {

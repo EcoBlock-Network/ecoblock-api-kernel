@@ -63,6 +63,23 @@ async fn main() -> anyhow::Result<()> {
     let listener = TcpListener::bind(addr).await?;
     tracing::info!("listening on {}", addr);
 
+    // In dev, optionally spawn the web-admin dev server so it's automatically available.
+    if std::env::var("START_WEB_ADMIN").map(|s| s == "true").unwrap_or(false) {
+        let api_base = format!("http://127.0.0.1:{}", port);
+        let dev_token = std::env::var("VITE_DEV_TOKEN").ok();
+        tokio::spawn(async move {
+            use std::process::Command;
+            let mut cmd = Command::new("npm");
+            cmd.arg("run").arg("dev").current_dir("web-admin");
+            cmd.env("VITE_API_BASE", &api_base);
+            if let Some(t) = dev_token {
+                cmd.env("VITE_DEV_TOKEN", t);
+            }
+            // best-effort spawn; ignore failures
+            let _ = cmd.spawn();
+        });
+    }
+
     axum::serve(listener, app)
         .with_graceful_shutdown(async move {
             let _ = tokio::signal::ctrl_c().await;
