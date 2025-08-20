@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* custom CMS styles */
+body { @apply bg-gray-50 text-gray-900 antialiased; }
+.header { @apply bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between; }
+.sidebar { @apply w-64 bg-white border-r border-gray-200 h-screen p-4 fixed; }
+.content { @apply ml-64 p-6; }
+.btn { @apply inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md shadow-sm; }
+.card { @apply bg-white rounded-lg shadow-sm p-4 }

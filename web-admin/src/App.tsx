@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import Blocks from './pages/Blocks'
+import Blogs from './pages/Blogs'
 import Login from './pages/Login'
 
 export default function App() {
   const [token, setToken] = useState<string | null>(null)
+  const [page, setPage] = useState<'blocks'|'blogs'>('blocks')
 
   useEffect(() => {
     try {
@@ -28,14 +30,26 @@ export default function App() {
   }
 
   return (
-    <div className="app">
-      <header className="header">
-        <h1>EcoBlock — Backoffice</h1>
-        {token && <button onClick={logout}>Logout</button>}
-      </header>
-      <main className="main">
-        {token ? <Blocks /> : <Login onLogin={onLogin} />}
-      </main>
+    <div className="min-h-screen flex">
+      <aside className="sidebar">
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold">EcoBlock</h2>
+          <p className="text-sm text-gray-500">Backoffice</p>
+        </div>
+        <nav className="space-y-2">
+          <button className="w-full text-left" onClick={() => setPage('blocks')}>Blocks</button>
+          <button className="w-full text-left" onClick={() => setPage('blogs')}>Blogs</button>
+        </nav>
+      </aside>
+      <div className="flex-1">
+        <header className="header">
+          <h1 className="text-base font-medium">EcoBlock — {page === 'blocks' ? 'Blocks' : 'Blogs'}</h1>
+          {token ? <div><button className="btn" onClick={logout}>Logout</button></div> : null}
+        </header>
+        <main className="content">
+          {token ? (page === 'blocks' ? <Blocks /> : <Blogs />) : <Login onLogin={onLogin} />}
+        </main>
+      </div>
     </div>
   )
 }

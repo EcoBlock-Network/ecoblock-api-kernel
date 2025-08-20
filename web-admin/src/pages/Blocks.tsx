@@ -49,8 +49,8 @@ export default function Blocks() {
 
   return (
     <section>
-      <div className="toolbar">
-        <button onClick={() => fetchBlocks()}>Rafraîchir</button>
+      <div className="toolbar flex items-center space-x-2 mb-4">
+        <button className="px-3 py-1 bg-gray-200 rounded" onClick={() => fetchBlocks()}>Rafraîchir</button>
       </div>
 
       {loading && <p>Chargement...</p>}
@@ -67,6 +67,9 @@ export default function Blocks() {
                 </div>
                 <div className="parents">Parents: {b.parents?.join(', ')}</div>
                 <pre className="data">{JSON.stringify(b.data, null, 2)}</pre>
+                <div className="mt-2">
+                  <button className="px-2 py-1 bg-blue-600 text-white rounded text-sm mr-2" onClick={() => navigator.clipboard.writeText(b.id)}>Copier ID</button>
+                </div>
               </article>
             ))
           ) : (

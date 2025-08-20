@@ -30,16 +30,16 @@ export default function Login({ onLogin }: { onLogin: (token: string) => void })
   return (
     <section>
       <h2>Connexion</h2>
-      <form onSubmit={submit}>
+      <form onSubmit={submit} className="space-y-4 max-w-md">
         <div>
-          <label>Username</label>
-          <input value={username} onChange={e => setUsername(e.target.value)} />
+          <label className="block text-sm mb-1">Username</label>
+          <input className="w-full p-2 border rounded" value={username} onChange={e => setUsername(e.target.value)} />
         </div>
         <div>
-          <label>Password</label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} />
+          <label className="block text-sm mb-1">Password</label>
+          <input className="w-full p-2 border rounded" type="password" value={password} onChange={e => setPassword(e.target.value)} />
         </div>
-        <button type="submit">Se connecter</button>
+        <button type="submit" className="btn">Se connecter</button>
         {error && <p className="error">{error}</p>}
       </form>
     </section>
