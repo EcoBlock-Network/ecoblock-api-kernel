@@ -482,6 +482,7 @@ dependencies = [
  "chrono",
  "dotenvy",
  "ed25519-dalek",
+ "http 0.2.12",
  "jsonwebtoken",
  "prometheus",
  "rand 0.8.5",

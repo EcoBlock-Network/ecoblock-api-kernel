@@ -10,10 +10,12 @@ use plugins::auth::AuthPlugin;
 use crate::plugins::communication::blog::plugin::BlogPlugin;
 use crate::plugins::communication::stories::plugin::StoriesPlugin;
 use crate::plugins::metrics::MetricsPlugin;
+use crate::plugins::tangle::plugin::TanglePlugin;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use dotenvy::dotenv;
 use std::env;
+// CORS handled in kernel::build_app for local dev
 // tower imports intentionally omitted
 
 mod db;
@@ -33,10 +35,12 @@ async fn main() -> anyhow::Result<()> {
     let blog_plugin = BlogPlugin::new(_pool.clone());
     let stories_plugin = StoriesPlugin::new(_pool.clone());
     let metrics_plugin = MetricsPlugin::new();
+    let tangle_plugin = TanglePlugin::new(_pool.clone());
     let plugins_vec: Vec<Box<dyn Plugin>> = vec![
         Box::new(HealthPlugin),
         Box::new(users_plugin),
         Box::new(auth_plugin),
+        Box::new(tangle_plugin),
         Box::new(blog_plugin),
         Box::new(stories_plugin),
     ];

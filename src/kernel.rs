@@ -1,6 +1,7 @@
 use axum::Router;
 use axum::middleware::Next;
 use axum::body::Body;
+use axum::http::{Request, Response, StatusCode, header::{HeaderValue, ORIGIN}, Method};
 use crate::plugins::metrics::MetricsPlugin as MaybeMetrics;
 use async_trait::async_trait;
 use tracing::info;
@@ -8,17 +9,12 @@ use tracing::info;
 
 #[async_trait]
 pub trait Plugin: Send + Sync {
-    
     async fn router(&self) -> Router;
-    
     fn name(&self) -> &'static str;
-    /// Optional lifecycle hook called when the kernel starts.
     async fn on_start(&self) {}
-    /// Optional lifecycle hook called on shutdown.
     async fn on_shutdown(&self) {}
 }
 
-/// Builds the application router by mounting each plugin under `/{plugin.name()}`.
 pub async fn build_app(plugins: &Vec<Box<dyn Plugin>>, metrics: Option<MaybeMetrics>) -> Router {
     let mut app = Router::new();
 
@@ -27,8 +23,6 @@ pub async fn build_app(plugins: &Vec<Box<dyn Plugin>>, metrics: Option<MaybeMetr
         plugin.on_start().await;
         let mut router = plugin.router().await;
 
-        // if metrics plugin provided, wrap the plugin router with a middleware
-        // that records request duration and counts using the matched route
         if let Some(ref m) = metrics {
             let counter = m.request_counter.clone();
             let histogram = m.request_duration.clone();
@@ -37,7 +31,6 @@ pub async fn build_app(plugins: &Vec<Box<dyn Plugin>>, metrics: Option<MaybeMetr
                 let histogram = histogram.clone();
                 async move {
                     let method = req.method().to_string();
-                    // MatchedPath should be populated for routers inside this layer
                     let route_label = if let Some(matched) = req.extensions().get::<axum::extract::MatchedPath>() {
                         matched.as_str().to_string()
                     } else {
@@ -55,7 +48,36 @@ pub async fn build_app(plugins: &Vec<Box<dyn Plugin>>, metrics: Option<MaybeMetr
             }));
         }
 
-        // mount plugin under its name to namespace routes
+        let router = router.layer(axum::middleware::from_fn(|req: Request<Body>, next: Next| async move {
+            // Allowed dev origins; echo back the incoming Origin when it matches.
+            const ALLOWED_ORIGINS: [&str; 2] = ["http://localhost:5173", "http://localhost:5174"];
+
+            let origin_hdr = req.headers().get(ORIGIN).and_then(|v| v.to_str().ok()).map(|s| s.to_string());
+            let allowed_origin = origin_hdr.as_deref().filter(|o| ALLOWED_ORIGINS.contains(o));
+
+            if req.method() == Method::OPTIONS {
+                let mut res = Response::new(Body::empty());
+                *res.status_mut() = StatusCode::OK;
+                if let Some(o) = allowed_origin {
+                    if let Ok(hv) = HeaderValue::from_str(o) {
+                        res.headers_mut().insert("access-control-allow-origin", hv);
+                    }
+                }
+                res.headers_mut().insert("access-control-allow-methods", HeaderValue::from_static("GET,POST,PUT,DELETE,OPTIONS"));
+                res.headers_mut().insert("access-control-allow-headers", HeaderValue::from_static("*"));
+                return res;
+            }
+
+            let mut res = next.run(req).await;
+            if let Some(o) = allowed_origin {
+                if let Ok(hv) = HeaderValue::from_str(o) {
+                    res.headers_mut().insert("access-control-allow-origin", hv);
+                }
+            }
+            res.headers_mut().insert("access-control-allow-headers", HeaderValue::from_static("*"));
+            res
+        }));
+
         app = app.nest(&format!("/{}", plugin.name()), router);
     }
 

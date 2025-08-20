@@ -14,8 +14,8 @@ impl TanglePlugin {
 impl Plugin for TanglePlugin {
     async fn router(&self) -> Router {
         Router::new()
-            .route("/", post(create_block))
-            .route("/", get(list_blocks))
+            .route("/blocks", post(create_block))
+            .route("/blocks", get(list_blocks))
             .route("/:id", get(get_block))
             .route("/:id", put(update_block))
             .route("/:id", delete(delete_block))
