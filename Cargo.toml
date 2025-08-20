@@ -22,8 +22,11 @@ uuid = { version = "1", features = ["serde", "v4"] }
 regex = "1"
 jsonwebtoken = { version = "8", default-features = true }
 chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.21"
 tokio-test = { version = "0.4", optional = true }
 prometheus = { version = "0.14", features = ["process"] }
+ed25519-dalek = "1.0.1"
+rand = "0.8"
 
 [dev-dependencies]
 reqwest = { version = "0.11", features = ["json", "blocking", "multipart"] }

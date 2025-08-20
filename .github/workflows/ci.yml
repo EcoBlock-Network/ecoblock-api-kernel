@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Set up PostgreSQL
+        uses: Harmon758/postgresql-action@v2
+        with:
+          postgresql version: '15'
+          postgresql db: 'ecoblock_test'
+          postgresql user: 'postgres'
+          postgresql password: 'postgres'
+
+      - name: Build (debug)
+        run: cargo build --workspace --all-targets --locked
+
+      - name: Run tests (including integration)
+        env:
+          RUST_LOG: info
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/ecoblock_test
+        run: |
+          # wait for postgres to accept connections
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 && break || sleep 1
+          done
+          cargo test --workspace --locked
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Run clippy
+        run: |
+          rustup component add clippy || true
+          cargo clippy --workspace --all-targets -- -D warnings
+
+  cargo-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install cargo-audit
+        run: |
+          cargo install cargo-audit
+
+      - name: Run cargo-audit
+        run: |
+          cargo audit || true

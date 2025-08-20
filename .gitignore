@@ -24,6 +24,48 @@
 .env
 .env.*
 
+# Cargo / Rust
+.cargo/
+**/target/
+**/Cargo.lock
+Cargo.lock
+**/*.rmeta
+**/*.rlib
+
+# Cargo package cache (local)
+/.cargo/registry/
+/.cargo/git/
+
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Generated documentation
+/doc/
+/target/doc/
+
+# Test DB artifacts
+/tmp/
+
+# Runtime data (local DB, WAL, chunks) - do not commit
+/data/
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Editor configs
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Node
+node_modules/
+
 # Rust build artefacts
 **/*.rmeta
 **/*.rlib

@@ -3,6 +3,7 @@ use axum::http::StatusCode;
 use sqlx;
 use crate::http_error::AppError;
 use crate::plugins::communication::blog::models::{BlogCreate, BlogUpdate, BlogDto};
+use crate::plugins::communication::blog::repo as repo;
 use crate::plugins::communication::shared::ListResponse;
 use sqlx::PgPool;
 
@@ -17,26 +18,12 @@ pub struct ListQuery {
 
 pub async fn create_blog(Extension(pool): Extension<PgPool>, Json(payload): Json<BlogCreate>) -> Result<Json<BlogDto>, AppError> {
     let is_active = payload.is_active.unwrap_or(true);
-    let dto: BlogDto = sqlx::query_as::<_, BlogDto>("INSERT INTO blogs (title, slug, body, author, is_active) VALUES ($1,$2,$3,$4,$5) RETURNING id, title, slug, body, author, is_active, created_at, updated_at")
-        .bind(&payload.title)
-        .bind(&payload.slug)
-        .bind(&payload.body)
-        .bind(&payload.author)
-        .bind(is_active)
-        .fetch_one(&pool)
-        .await
-        .map_err(AppError::from)?;
-
+    let dto = repo::insert_blog(&pool, &payload.title, &payload.slug, &payload.body, &payload.author, is_active).await?;
     Ok(Json(dto))
 }
 
 pub async fn get_blog(Extension(pool): Extension<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<BlogDto>, AppError> {
-    let dto: BlogDto = sqlx::query_as::<_, BlogDto>("SELECT id, title, slug, body, author, is_active, created_at, updated_at FROM blogs WHERE id = $1")
-        .bind(id)
-        .fetch_one(&pool)
-        .await
-        .map_err(AppError::from)?;
-
+    let dto = repo::get_blog(&pool, id).await?;
     Ok(Json(dto))
 }
 
@@ -64,6 +51,7 @@ pub async fn list_blogs(Extension(pool): Extension<PgPool>, axum::extract::Query
     let where_sql = if where_clauses.is_empty() { "1=1".to_string() } else { where_clauses.join(" AND ") };
 
     let items_sql = format!("SELECT id, title, slug, body, author, is_active, created_at, updated_at FROM blogs WHERE {} ORDER BY created_at DESC LIMIT ${} OFFSET ${}", where_sql, params.len() + 1, params.len() + 2);
+    // build params bindings manually in handlers, then pass final SQL to repo which will execute
     let mut items_q = sqlx::query_as::<_, BlogDto>(&items_sql);
     for p in &params {
         match p {
@@ -93,21 +81,11 @@ pub async fn list_blogs(Extension(pool): Extension<PgPool>, axum::extract::Query
 
 pub async fn update_blog(Extension(pool): Extension<PgPool>, Path(id): Path<uuid::Uuid>, Json(payload): Json<BlogUpdate>) -> Result<Json<BlogDto>, AppError> {
     
-    let dto: BlogDto = sqlx::query_as::<_, BlogDto>("UPDATE blogs SET title = COALESCE($1, title), slug = COALESCE($2, slug), body = COALESCE($3, body), author = COALESCE($4, author), is_active = COALESCE($5, is_active), updated_at = now() WHERE id = $6 RETURNING id, title, slug, body, author, is_active, created_at, updated_at")
-        .bind(payload.title)
-        .bind(payload.slug)
-        .bind(payload.body)
-        .bind(payload.author)
-        .bind(payload.is_active)
-        .bind(id)
-        .fetch_one(&pool)
-        .await
-        .map_err(AppError::from)?;
-
+    let dto = repo::update_blog(&pool, id, payload.title, payload.slug, payload.body, payload.author, payload.is_active).await?;
     Ok(Json(dto))
 }
 
 pub async fn delete_blog(Extension(pool): Extension<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<StatusCode, AppError> {
-    sqlx::query("DELETE FROM blogs WHERE id = $1").bind(id).execute(&pool).await.map_err(AppError::from)?;
+    repo::delete_blog(&pool, id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

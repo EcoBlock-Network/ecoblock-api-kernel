@@ -2,7 +2,8 @@ use axum::{Json, extract::State};
 use axum::http::StatusCode;
 use crate::http_error::AppError;
 use crate::plugins::auth::models::{LoginRequest, LoginResponse};
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
+use crate::plugins::auth::repo as repo;
 use bcrypt::verify;
 use jsonwebtoken::{EncodingKey, Header, encode, DecodingKey, Validation, decode};
 use serde::Serialize;
@@ -56,19 +57,11 @@ pub async fn login(State(pool): State<PgPool>, Json(payload): Json<LoginRequest>
         return Err(AppError::new(StatusCode::BAD_REQUEST, "username and password required").with_code("invalid_credentials"));
     }
 
-    let opt_row = sqlx::query("SELECT id, username, password_hash FROM users WHERE username = $1")
-        .bind(&payload.username)
-        .fetch_optional(&pool)
-        .await
-        .map_err(AppError::from)?;
-
-    let row = match opt_row {
-        Some(r) => r,
+    let user = repo::find_user_by_username(&pool, &payload.username).await?;
+    let (id, password_hash) = match user {
+        Some((id, hash)) => (id, hash),
         None => return Err(AppError::new(StatusCode::UNAUTHORIZED, "invalid username or password").with_code("invalid_credentials")),
     };
-
-    let password_hash: String = row.get("password_hash");
-    let id: uuid::Uuid = row.get("id");
 
     let valid = verify(&payload.password, &password_hash).map_err(|e| AppError::new(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     if !valid {
@@ -85,12 +78,6 @@ pub async fn login(State(pool): State<PgPool>, Json(payload): Json<LoginRequest>
 }
 
 pub async fn whoami(State(pool): State<PgPool>, auth: AuthUser) -> Result<Json<UserDto>, AppError> {
-    let row = sqlx::query("SELECT id, username, email FROM users WHERE id = $1")
-        .bind(auth.user_id)
-        .fetch_one(&pool)
-        .await
-        .map_err(AppError::from)?;
-
-    let user = UserDto { id: row.get("id"), username: row.get("username"), email: row.get("email") };
-    Ok(Json(user))
+    let (id, username, email) = repo::get_user_basic(&pool, auth.user_id).await?;
+    Ok(Json(UserDto { id, username, email }))
 }

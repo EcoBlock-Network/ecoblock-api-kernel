@@ -1,10 +1,10 @@
 use axum::{Json, extract::Path};
 use axum::http::StatusCode;
-use sqlx::{PgPool, Row};
-use bcrypt::{hash, DEFAULT_COST};
+use sqlx::PgPool;
 use crate::plugins::users::models::{UserDto, CreateUser, UpdateUser};
 use uuid::Uuid;
 use crate::http_error::AppError;
+use crate::plugins::users::repo as repo;
 
 pub async fn create_user(pool: PgPool, payload: CreateUser) -> Result<Json<UserDto>, AppError> {
     if !payload.email.contains('@') {
@@ -14,69 +14,29 @@ pub async fn create_user(pool: PgPool, payload: CreateUser) -> Result<Json<UserD
         return Err(AppError::new(StatusCode::BAD_REQUEST, "password too short"));
     }
 
-    let password_hash = hash(&payload.password, DEFAULT_COST).map_err(|e| AppError::new(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    let row = sqlx::query("INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email")
-        .bind(&payload.username)
-        .bind(&payload.email)
-        .bind(&password_hash)
-        .fetch_one(&pool)
-        .await
-        .map_err(AppError::from)?;
-
-    let id: uuid::Uuid = row.get("id");
-    let username: String = row.get("username");
-    let email: String = row.get("email");
-
-    Ok(Json(UserDto { id, username, email }))
+    let dto = repo::insert_user(&pool, &payload.username, &payload.email, &payload.password).await?;
+    Ok(Json(dto))
 }
 
 pub async fn list_users(pool: PgPool) -> Result<Json<Vec<UserDto>>, AppError> {
-    let rows = sqlx::query("SELECT id, username, email FROM users ORDER BY created_at DESC")
-        .fetch_all(&pool)
-        .await
-        .map_err(AppError::from)?;
-
-    let users = rows.into_iter().map(|r| UserDto { id: r.get("id"), username: r.get("username"), email: r.get("email") }).collect();
+    let users = repo::list_users(&pool).await?;
     Ok(Json(users))
 }
 
 pub async fn get_user(pool: PgPool, Path(id): Path<Uuid>) -> Result<Json<UserDto>, AppError> {
-    let row = sqlx::query("SELECT id, username, email FROM users WHERE id = $1")
-        .bind(id)
-        .fetch_one(&pool)
-        .await
-        .map_err(AppError::from)?;
-
-    Ok(Json(UserDto { id: row.get("id"), username: row.get("username"), email: row.get("email") }))
+    let user = repo::get_user(&pool, id).await?;
+    Ok(Json(user))
 }
 pub async fn update_user(pool: PgPool, Path(id): Path<Uuid>, Json(payload): Json<UpdateUser>) -> Result<Json<UserDto>, AppError> {
-    let current = sqlx::query("SELECT username, email FROM users WHERE id = $1")
-        .bind(id)
-        .fetch_one(&pool)
-        .await
-        .map_err(AppError::from)?;
-
-    let new_username = payload.username.unwrap_or(current.get("username"));
-    let new_email = payload.email.unwrap_or(current.get("email"));
-
-    let row = sqlx::query("UPDATE users SET username = $1, email = $2 WHERE id = $3 RETURNING id, username, email")
-        .bind(new_username)
-        .bind(new_email)
-        .bind(id)
-        .fetch_one(&pool)
-        .await
-        .map_err(AppError::from)?;
-
-    Ok(Json(UserDto { id: row.get("id"), username: row.get("username"), email: row.get("email") }))
+    // preserve existing username/email when payload fields are None
+    let current = repo::get_user(&pool, id).await?;
+    let new_username = payload.username.unwrap_or(current.username);
+    let new_email = payload.email.unwrap_or(current.email);
+    let updated = repo::update_user(&pool, id, &new_username, &new_email).await?;
+    Ok(Json(updated))
 }
 
 pub async fn delete_user(pool: PgPool, Path(id): Path<Uuid>) -> Result<StatusCode, AppError> {
-    sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(id)
-        .execute(&pool)
-        .await
-        .map_err(AppError::from)?;
-
+    repo::delete_user(&pool, id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

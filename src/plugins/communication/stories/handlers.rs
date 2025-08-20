@@ -3,6 +3,7 @@ use axum::http::StatusCode;
 use sqlx;
 use crate::http_error::AppError;
 use crate::plugins::communication::stories::models::{StoryCreate, StoryUpdate, StoryDto};
+use crate::plugins::communication::stories::repo as repo;
 use crate::plugins::communication::shared::ListResponse;
 use sqlx::PgPool;
 
@@ -16,27 +17,12 @@ pub struct ListQuery {
 
 pub async fn create_story(Extension(pool): Extension<PgPool>, Json(payload): Json<StoryCreate>,) -> Result<Json<StoryDto>, AppError> {
     let is_active = payload.is_active.unwrap_or(true);
-    let dto: StoryDto = sqlx::query_as::<_, StoryDto>("INSERT INTO stories (title, media_url, caption, is_active, expires_at, created_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, title, media_url, caption, is_active, created_at, expires_at, created_by")
-        .bind(&payload.title)
-        .bind(&payload.media_url)
-        .bind(&payload.caption)
-        .bind(is_active)
-        .bind(payload.expires_at)
-        .bind("admin")
-        .fetch_one(&pool)
-        .await
-        .map_err(AppError::from)?;
-
+    let dto = repo::insert_story(&pool, payload.title.as_deref().unwrap_or(""), &payload.media_url, payload.caption.as_deref().unwrap_or(""), is_active, payload.expires_at, "admin").await?;
     Ok(Json(dto))
 }
 
 pub async fn get_story(Extension(pool): Extension<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<StoryDto>, AppError> {
-    let dto: StoryDto = sqlx::query_as::<_, StoryDto>("SELECT id, title, media_url, caption, is_active, created_at, expires_at, created_by FROM stories WHERE id = $1")
-        .bind(id)
-        .fetch_one(&pool)
-        .await
-        .map_err(AppError::from)?;
-
+    let dto = repo::get_story(&pool, id).await?;
     Ok(Json(dto))
 }
 
@@ -88,21 +74,11 @@ pub async fn list_stories(Extension(pool): Extension<PgPool>, axum::extract::Que
 }
 
 pub async fn update_story(Extension(pool): Extension<PgPool>, Path(id): Path<uuid::Uuid>, Json(payload): Json<StoryUpdate>) -> Result<Json<StoryDto>, AppError> {
-    let dto: StoryDto = sqlx::query_as::<_, StoryDto>("UPDATE stories SET title = COALESCE($1, title), media_url = COALESCE($2, media_url), caption = COALESCE($3, caption), is_active = COALESCE($4, is_active), expires_at = COALESCE($5, expires_at) WHERE id = $6 RETURNING id, title, media_url, caption, is_active, created_at, expires_at, created_by")
-        .bind(payload.title)
-        .bind(payload.media_url)
-        .bind(payload.caption)
-        .bind(payload.is_active)
-        .bind(payload.expires_at)
-        .bind(id)
-        .fetch_one(&pool)
-        .await
-        .map_err(AppError::from)?;
-
+    let dto = repo::update_story(&pool, id, payload.title, payload.media_url, payload.caption, payload.is_active, payload.expires_at).await?;
     Ok(Json(dto))
 }
 
 pub async fn delete_story(Extension(pool): Extension<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<StatusCode, AppError> {
-    sqlx::query("DELETE FROM stories WHERE id = $1").bind(id).execute(&pool).await.map_err(AppError::from)?;
+    repo::delete_story(&pool, id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

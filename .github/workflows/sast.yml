@@ -1,0 +1,30 @@
+name: Static Analysis
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  sast:
+    runs-on: ubuntu-latest
++    steps:
++      - name: Checkout
++        uses: actions/checkout@v4
++
++      - name: Install Rust toolchain
++        uses: actions-rs/toolchain@v1
++        with:
++          toolchain: stable
++          override: true
++
++      - name: Run cargo-audit
++        run: |
++          cargo install cargo-audit || true
++          cargo audit || true
++
++      - name: Run cargo-deny (optional)
++        run: |
++          cargo install cargo-deny || true
++          cargo deny check || true
