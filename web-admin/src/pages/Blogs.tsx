@@ -43,8 +43,8 @@ export default function Blogs() {
       params.set('page', String(p))
       params.set('per_page', String(perPage))
       if (q) params.set('q', q)
-      const res = await fetch(`${API_BASE}/communication/blog?${params.toString()}`, { headers })
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+    const res = await fetch(`${API_BASE}/communication/blog?${params.toString()}`, { headers })
+    if (!res.ok) { const data = await res.json().catch(() => null); toast.showApiError(data || await res.text()); return }
   const data = await res.json()
   setItems(data.items || [])
   setTotalCount(data.total ?? null)
@@ -62,7 +62,7 @@ export default function Blogs() {
     const headers: Record<string,string> = { 'Content-Type': 'application/json' }
     if (token) headers['Authorization'] = `Bearer ${token}`
     const res = await fetch(`${API_BASE}/communication/blog`, { method: 'POST', headers, body: JSON.stringify(payload) })
-  if (!res.ok) { const txt = await res.text(); toast.showToast('create failed: '+txt, 'error'); return }
+  if (!res.ok) { const data = await res.json().catch(() => null); toast.showApiError(data || await res.text()); return }
     await fetchList()
   }
 
@@ -79,11 +79,11 @@ export default function Blogs() {
     const headers: Record<string,string> = { 'Content-Type': 'application/json' }
     if (token) headers['Authorization'] = `Bearer ${token}`
     if (b.id) {
-      const res = await fetch(`${API_BASE}/communication/blog/${b.id}`, { method: 'PUT', headers, body: JSON.stringify({ title: b.title }) })
-  if (!res.ok) { toast.showToast('update failed', 'error'); return }
+    const res = await fetch(`${API_BASE}/communication/blog/${b.id}`, { method: 'PUT', headers, body: JSON.stringify({ title: b.title }) })
+  if (!res.ok) { const data = await res.json().catch(() => null); toast.showApiError(data || await res.text()); return }
     } else {
-      const res = await fetch(`${API_BASE}/communication/blog`, { method: 'POST', headers, body: JSON.stringify(b) })
-  if (!res.ok) { const txt = await res.text(); toast.showToast('create failed: '+txt, 'error'); return }
+    const res = await fetch(`${API_BASE}/communication/blog`, { method: 'POST', headers, body: JSON.stringify(b) })
+  if (!res.ok) { const data = await res.json().catch(() => null); toast.showApiError(data || await res.text()); return }
     }
     closeEditor()
     await fetchList()
@@ -111,7 +111,7 @@ export default function Blogs() {
     const token = getToken(); const headers: Record<string,string> = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
     const res = await fetch(`${API_BASE}/communication/blog/${id}`, { method: 'DELETE', headers })
-  if (!res.ok) { toast.showToast('delete failed', 'error'); return }
+  if (!res.ok) { const data = await res.json().catch(() => null); toast.showApiError(data || await res.text()); return }
     await fetchList()
   }
 

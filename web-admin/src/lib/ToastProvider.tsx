@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { t } from './i18n'
 
 export type ToastType = 'info' | 'success' | 'error'
 type Toast = { id: string; message: string; type: ToastType }
@@ -6,6 +7,7 @@ type Toast = { id: string; message: string; type: ToastType }
 type ToastContext = {
   showToast: (message: string, type?: ToastType, timeout?: number) => void
   setLoading: (v: boolean) => void
+  showApiError: (body: any) => void
 }
 
 const ctx = createContext<ToastContext | null>(null)
@@ -22,9 +24,25 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const value = useMemo(() => ({ showToast, setLoading }), [showToast])
+  
+  function mapApiMessage(body: any) {
+    if (!body) return t('server_error')
+    if (typeof body === 'string') return body
+    if (body.code) {
+      return t(body.code) || body.error || body.message || body.code
+    }
+    return body.error || body.message || JSON.stringify(body)
+  }
+
+  function showApiError(body: any) {
+    const msg = mapApiMessage(body)
+    showToast(msg, 'error')
+  }
+
+  const fullValue = useMemo(() => ({ showToast, setLoading, showApiError }), [showToast, setLoading])
 
   return (
-    <ctx.Provider value={value}>
+    <ctx.Provider value={fullValue}>
       {children}
       {/* toasts container */}
       <div style={{ position: 'fixed', right: 16, bottom: 16, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8 }}>

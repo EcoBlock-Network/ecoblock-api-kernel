@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useToast } from '../lib/ToastProvider'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3000'
 
@@ -14,6 +15,7 @@ export default function Login({ onLogin }: { onLogin: (token: string) => void })
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const toast = useToast()
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -27,13 +29,14 @@ export default function Login({ onLogin }: { onLogin: (token: string) => void })
       })
       const text = await res.text()
       if (!res.ok) {
-        let msg = `${res.status} ${res.statusText}`
-        try { msg = JSON.parse(text).error || text } catch {}
-        throw new Error(msg)
+        const data = JSON.parse(text || '{}').catch?.(() => null)
+        toast.showApiError(data || text)
+        setLoading(false)
+        return
       }
       const data = JSON.parse(text)
       const token = data.token || data.access_token || data.accessToken
-      if (!token) throw new Error('no token returned')
+      if (!token) { toast.showApiError({ error: 'no token returned' }); setLoading(false); return }
       try { localStorage.setItem('ecoblock_token', token) } catch (_) {}
       onLogin(token)
       // If redirect is provided, navigate there (simple client-side)

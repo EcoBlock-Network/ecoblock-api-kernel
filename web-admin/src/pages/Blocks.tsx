@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useToast } from '../lib/ToastProvider'
 
 
 type Block = {
@@ -23,6 +24,7 @@ export default function Blocks() {
   const [blocks, setBlocks] = useState<Block[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const toast = useToast()
 
   async function fetchBlocks() {
     setLoading(true)
@@ -31,9 +33,9 @@ export default function Blocks() {
       const headers: Record<string,string> = { 'Accept': 'application/json' }
       const token = getToken()
       if (token) headers['Authorization'] = `Bearer ${token}`
-      const res = await fetch(`${API_BASE}/tangle/blocks`, { headers })
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-      const data = await res.json()
+  const res = await fetch(`${API_BASE}/tangle/blocks`, { headers })
+  if (!res.ok) { const data = await res.json().catch(() => null); toast.showApiError(data || await res.text()); return }
+  const data = await res.json()
       const items = Array.isArray(data) ? data : data.items ?? data.blocks ?? []
       setBlocks(items)
     } catch (err: any) {

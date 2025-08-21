@@ -50,7 +50,7 @@ export default function Users() {
       if (token) headers['Authorization'] = `Bearer ${token}`
       const payload = { username, email, password }
       const res = await fetch(`${API_BASE}/users`, { method: 'POST', headers, body: JSON.stringify(payload) })
-      if (!res.ok) { const txt = await res.text(); toast.showToast('create failed: '+txt, 'error'); return }
+    if (!res.ok) { const data = await res.json().catch(() => null); toast.showApiError(data || await res.text()); return }
       setUsername(''); setEmail(''); setPassword('')
       toast.showToast('Utilisateur créé', 'success')
       await fetchList()
@@ -66,7 +66,7 @@ export default function Users() {
       if (token) headers['Authorization'] = `Bearer ${token}`
       const payload = { username, email, password }
       const res = await fetch(`${API_BASE}/users/admin`, { method: 'POST', headers, body: JSON.stringify(payload) })
-      if (!res.ok) { const txt = await res.text(); toast.showToast('create admin failed: '+txt, 'error'); return }
+    if (!res.ok) { const data = await res.json().catch(() => null); toast.showApiError(data || await res.text()); return }
       setUsername(''); setEmail(''); setPassword('')
       toast.showToast('Admin créé', 'success')
       await fetchList()
@@ -81,7 +81,7 @@ export default function Users() {
       const token = getToken(); const headers: Record<string,string> = {}
       if (token) headers['Authorization'] = `Bearer ${token}`
       const res = await fetch(`${API_BASE}/users/${id}/grant_admin`, { method: 'POST', headers })
-      if (!res.ok) { const txt = await res.text(); toast.showToast('grant admin failed: '+txt, 'error'); return }
+    if (!res.ok) { const data = await res.json().catch(() => null); toast.showApiError(data || await res.text()); return }
       toast.showToast('Utilisateur promu admin', 'success')
       await fetchList()
     } catch (e: any) { toast.showToast('grant admin failed: '+(e.message||String(e)), 'error') }

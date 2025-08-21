@@ -23,8 +23,8 @@ impl Plugin for UsersPlugin {
         let p_get = self.pool.clone();
         let p_update = self.pool.clone();
     let p_delete = self.pool.clone();
-        let p_grant = self.pool.clone(); // Cloning the pool for grant_admin endpoint
-        let p_admin = self.pool.clone(); // separate clone for the /admin route to avoid move issues
+    let p_grant = self.pool.clone();
+    let p_admin = self.pool.clone();
 
         Router::new()
             .route("/", post(move |Json(payload): Json<CreateUser>| {

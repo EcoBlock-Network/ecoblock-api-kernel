@@ -45,17 +45,15 @@ impl From<SqlxError> for AppError {
     fn from(e: SqlxError) -> Self {
         use sqlx::Error::*;
         match e {
-            RowNotFound => AppError::new(StatusCode::NOT_FOUND, "not found").with_code("not_found"),
+            RowNotFound => AppError::new(StatusCode::NOT_FOUND, "notFound").with_code("not_found"),
             Database(db) => {
                 if let Some(code) = db.code() {
                     if code == "23505" {
-                        
                         if let Some(cons) = db.constraint() {
                             let code_str = match cons {
                                 "users_username_key" | "users_username_unique" => "duplicate_username",
                                 "users_email_key" | "users_email_unique" => "duplicate_email",
                                 other => {
-                                    
                                     if other.contains("username") {
                                         "duplicate_username"
                                     } else if other.contains("email") {
@@ -65,9 +63,9 @@ impl From<SqlxError> for AppError {
                                     }
                                 }
                             };
-                            return AppError { status: StatusCode::CONFLICT, message: "duplicate key".to_string(), code: Some(code_str.to_string()) };
+                            return AppError { status: StatusCode::CONFLICT, message: "duplicateKey".to_string(), code: Some(code_str.to_string()) };
                         }
-                        return AppError { status: StatusCode::CONFLICT, message: "duplicate key".to_string(), code: Some("duplicate_key".to_string()) };
+                        return AppError { status: StatusCode::CONFLICT, message: "duplicateKey".to_string(), code: Some("duplicate_key".to_string()) };
                     }
                 }
                 AppError::new(StatusCode::INTERNAL_SERVER_ERROR, db.message().to_string())

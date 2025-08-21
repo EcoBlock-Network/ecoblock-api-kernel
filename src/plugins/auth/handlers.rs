@@ -54,22 +54,22 @@ where
 
 pub async fn login(State(pool): State<PgPool>, Json(payload): Json<LoginRequest>) -> Result<Json<LoginResponse>, AppError> {
     if payload.username.is_empty() || payload.password.is_empty() {
-        return Err(AppError::new(StatusCode::BAD_REQUEST, "username and password required").with_code("invalid_credentials"));
+        return Err(AppError::new(StatusCode::BAD_REQUEST, "usernameAndPasswordRequired").with_code("invalid_credentials"));
     }
 
     let user = repo::find_user_by_username(&pool, &payload.username).await?;
     let (id, password_hash) = match user {
         Some((id, hash)) => (id, hash),
-        None => return Err(AppError::new(StatusCode::UNAUTHORIZED, "invalid username or password").with_code("invalid_credentials")),
+    None => return Err(AppError::new(StatusCode::UNAUTHORIZED, "invalidUsernameOrPassword").with_code("invalid_credentials")),
     };
 
     let valid = verify(&payload.password, &password_hash).map_err(|e| AppError::new(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     if !valid {
-        return Err(AppError::new(StatusCode::UNAUTHORIZED, "invalid username or password").with_code("invalid_credentials"));
+        return Err(AppError::new(StatusCode::UNAUTHORIZED, "invalidUsernameOrPassword").with_code("invalid_credentials"));
     }
 
     
-    let secret = env::var("JWT_SECRET").map_err(|_| AppError::new(StatusCode::INTERNAL_SERVER_ERROR, "JWT_SECRET not configured").with_code("config_error"))?;
+    let secret = env::var("JWT_SECRET").map_err(|_| AppError::new(StatusCode::INTERNAL_SERVER_ERROR, "jwtSecretNotConfigured").with_code("config_error"))?;
     let exp = (chrono::Utc::now() + chrono::Duration::hours(24)).timestamp() as usize;
     let claims = Claims { sub: id.to_string(), exp };
     let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_bytes())).map_err(|e| AppError::new(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
