@@ -9,3 +9,11 @@ body { @apply bg-gray-50 text-gray-900 antialiased; }
 .content { @apply ml-64 p-6; }
 .btn { @apply inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md shadow-sm; }
 .card { @apply bg-white rounded-lg shadow-sm p-4 }
+
+/* toast animations */
+.ecb-toast-enter { opacity: 0; transform: translateY(6px); }
+.ecb-toast-enter-active { opacity: 1; transform: translateY(0); transition: opacity .2s ease, transform .2s ease; }
+.ecb-toast-exit { opacity: 1 }
+.ecb-toast-exit-active { opacity: 0; transition: opacity .15s ease; }
+
+.loader { @apply text-sm }

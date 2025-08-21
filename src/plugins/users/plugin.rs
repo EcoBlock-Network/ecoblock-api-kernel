@@ -22,7 +22,9 @@ impl Plugin for UsersPlugin {
         let p_list = self.pool.clone();
         let p_get = self.pool.clone();
         let p_update = self.pool.clone();
-        let p_delete = self.pool.clone();
+    let p_delete = self.pool.clone();
+        let p_grant = self.pool.clone(); // Cloning the pool for grant_admin endpoint
+        let p_admin = self.pool.clone(); // separate clone for the /admin route to avoid move issues
 
         Router::new()
             .route("/", post(move |Json(payload): Json<CreateUser>| {
@@ -45,6 +47,14 @@ impl Plugin for UsersPlugin {
                 let pool = p_delete.clone();
                 async move { delete_user(pool, Path(id)).await }
             }))
+            .route("/:id/grant_admin", post(move |Path(id): Path<uuid::Uuid>, auth: crate::plugins::auth::handlers::AuthUser| {
+                let pool = p_grant.clone();
+                async move { crate::plugins::users::handlers::grant_admin(pool, auth, Path(id)).await }
+            }).layer(axum::middleware::from_fn(crate::plugins::auth::middleware::require_auth)))
+                    .route("/admin", post(move |auth: crate::plugins::auth::handlers::AuthUser, Json(payload): Json<CreateUser>| {
+                        let pool = p_admin.clone();
+                        async move { crate::plugins::users::handlers::create_admin(pool, auth, payload).await }
+                    }).layer(axum::middleware::from_fn(crate::plugins::auth::middleware::require_auth)))
     }
 
     fn name(&self) -> &'static str {

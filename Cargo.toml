@@ -13,7 +13,7 @@ serde_json = "1.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 tower = { version = "0.4", features = ["util"] }
-tower-http = { version = "0.3", features = ["trace", "cors", "fs"] }
+tower-http = { version = "0.3", features = ["trace", "cors", "fs", "add-extension"] }
 http = "0.2"
 hyper = "0.14"
 async-trait = "0.1"
@@ -30,6 +30,8 @@ tokio-test = { version = "0.4", optional = true }
 prometheus = { version = "0.14", features = ["process"] }
 ed25519-dalek = "1.0.1"
 rand = "0.8"
+infer = "0.12"
+image = { version = "0.24", features = ["png", "jpeg", "gif", "webp"] }
 
 [dev-dependencies]
 reqwest = { version = "0.11", features = ["json", "blocking", "multipart"] }
