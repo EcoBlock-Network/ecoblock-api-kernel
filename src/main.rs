@@ -3,12 +3,12 @@ mod http_error;
 mod kernel;
 mod plugins;
 
-use axum::Router;
 use crate::plugins::communication::blog::plugin::BlogPlugin;
 use crate::plugins::communication::stories::plugin::StoriesPlugin;
 use crate::plugins::communication::upload as upload_plugin;
 use crate::plugins::metrics::MetricsPlugin;
 use crate::plugins::tangle::plugin::TanglePlugin;
+use axum::Router;
 use dotenvy::dotenv;
 use kernel::{Plugin, build_app};
 use plugins::auth::AuthPlugin;
@@ -75,21 +75,34 @@ async fn main() -> anyhow::Result<()> {
         axum::extract::Path(path): axum::extract::Path<String>,
     ) -> axum::response::Response {
         let safe = path.replace("..", "");
-        let mut p = std::path::PathBuf::from("data/uploads");
-        p.push(&safe);
-        if !p.exists() {
+        let mut joined = std::path::PathBuf::from("data/uploads");
+        joined.push(&safe);
+        let base = std::path::Path::new("data/uploads");
+        let base_canon = tokio::fs::canonicalize(base)
+            .await
+            .unwrap_or_else(|_| base.to_path_buf());
+        let target = match tokio::fs::canonicalize(&joined).await {
+            Ok(p) => p,
+            Err(_) => {
+                return axum::http::Response::builder()
+                    .status(axum::http::StatusCode::NOT_FOUND)
+                    .body(axum::body::Body::from("not found"))
+                    .unwrap();
+            }
+        };
+        if !target.starts_with(&base_canon) {
             return axum::http::Response::builder()
                 .status(axum::http::StatusCode::NOT_FOUND)
                 .body(axum::body::Body::from("not found"))
                 .unwrap();
         }
-        match tokio::fs::read(&p).await {
+        match tokio::fs::read(&target).await {
             Err(e) => axum::http::Response::builder()
                 .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
                 .body(axum::body::Body::from(format!("io: {}", e)))
                 .unwrap(),
             Ok(data) => {
-                let mime = mime_guess::from_path(&p).first_or_octet_stream();
+                let mime = mime_guess::from_path(&target).first_or_octet_stream();
                 axum::http::Response::builder()
                     .status(axum::http::StatusCode::OK)
                     .header(axum::http::header::CONTENT_TYPE, mime.as_ref())

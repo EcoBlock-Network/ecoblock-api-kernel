@@ -57,12 +57,10 @@ pub async fn upload_file(mut multipart: Multipart) -> Result<Json<serde_json::Va
                 "image/jpeg" => "jpg",
                 "image/gif" => "gif",
                 "image/webp" => "webp",
-                _ => {
-                    std::path::Path::new(&filename)
-                        .extension()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("bin")
-                }
+                _ => std::path::Path::new(&filename)
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("bin"),
             };
             let mut final_bytes = data.to_vec();
             if mime.starts_with("image/") {
