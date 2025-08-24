@@ -60,7 +60,7 @@ async fn setup_with_plugin(test_db: &str) -> anyhow::Result<(String, tokio::task
     let pool = db::init_db(&unique_db_url).await?;
     let blog_plugin = BlogPlugin::new(pool.clone());
     let plugins: Vec<Box<dyn ecoblock_api_kernel::kernel::Plugin>> = vec![Box::new(ecoblock_api_kernel::plugins::health::HealthPlugin), Box::new(blog_plugin)];
-    let app = build_app(&plugins, None).await;
+    let app = build_app(&plugins, None, None).await;
 
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let addr = listener.local_addr()?;

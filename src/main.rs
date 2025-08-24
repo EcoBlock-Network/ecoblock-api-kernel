@@ -1,6 +1,7 @@
 mod kernel;
 mod plugins;
 mod http_error;
+mod cache;
 
 use axum::Router;
 // ...existing code... (middleware Next is used in kernel layer)
@@ -51,7 +52,27 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("mounting plugins: {:?}", plugin_names);
 
     // build app and pass metrics plugin so each plugin router can be instrumented with route labels
-    let mut app: Router = build_app(&plugins_vec, Some(metrics_plugin.clone())).await;
+    // Build cache backend based on env var CACHE. Supported values: "inmem" (default), "redis".
+    let cache_backend = env::var("CACHE").unwrap_or_else(|_| "inmem".to_string());
+    let cache: Option<crate::cache::DynCache> = match cache_backend.as_str() {
+        "redis" => {
+            let redis_url = env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1/".to_string());
+            match crate::cache::RedisCache::new(&redis_url).await {
+                Ok(rc) => Some(rc.into_arc()),
+                Err(e) => {
+                    tracing::error!("failed to init redis cache: {}", e);
+                    None
+                }
+            }
+        }
+        _ => {
+            // default to in-memory cache with a modest capacity
+            let inmem = crate::cache::InMemoryCache::new(1024);
+            Some(inmem.into_arc())
+        }
+    };
+
+    let mut app: Router = build_app(&plugins_vec, Some(metrics_plugin.clone()), cache).await;
 
     // expose metrics at /metrics (not instrumented to avoid double-counting)
     app = app.nest("/metrics", metrics_plugin.router());

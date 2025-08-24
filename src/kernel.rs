@@ -3,6 +3,7 @@ use axum::middleware::Next;
 use axum::body::Body;
 use axum::http::{Request, Response, StatusCode, header::{HeaderValue, ORIGIN}, Method};
 use crate::plugins::metrics::MetricsPlugin as MaybeMetrics;
+use crate::cache::DynCache;
 use async_trait::async_trait;
 use tracing::info;
 
@@ -15,7 +16,7 @@ pub trait Plugin: Send + Sync {
     async fn on_shutdown(&self) {}
 }
 
-pub async fn build_app(plugins: &Vec<Box<dyn Plugin>>, metrics: Option<MaybeMetrics>) -> Router {
+pub async fn build_app(plugins: &Vec<Box<dyn Plugin>>, metrics: Option<MaybeMetrics>, cache: Option<DynCache>) -> Router {
     let mut app = Router::new();
 
     for plugin in plugins.iter() {
@@ -48,8 +49,7 @@ pub async fn build_app(plugins: &Vec<Box<dyn Plugin>>, metrics: Option<MaybeMetr
             }));
         }
 
-        let router = router.layer(axum::middleware::from_fn(|req: Request<Body>, next: Next| async move {
-            // Allowed dev origins; echo back the incoming Origin when it matches.
+    let mut router = router.layer(axum::middleware::from_fn(|req: Request<Body>, next: Next| async move {
             const ALLOWED_ORIGINS: [&str; 2] = ["http://localhost:5173", "http://localhost:5174"];
 
             let origin_hdr = req.headers().get(ORIGIN).and_then(|v| v.to_str().ok()).map(|s| s.to_string());
@@ -78,7 +78,11 @@ pub async fn build_app(plugins: &Vec<Box<dyn Plugin>>, metrics: Option<MaybeMetr
             res
         }));
 
-        app = app.nest(&format!("/{}", plugin.name()), router);
+        let ext_cache = cache.clone();
+        app = app.nest(
+            &format!("/{}", plugin.name()),
+            router.layer(axum::Extension::<Option<DynCache>>(ext_cache)),
+        );
     }
 
     app

@@ -32,6 +32,9 @@ ed25519-dalek = "1.0.1"
 rand = "0.8"
 infer = "0.12"
 image = { version = "0.24", features = ["png", "jpeg", "gif", "webp"] }
+lru = "0.8"
+parking_lot = "0.12"
+redis = { version = "0.24", features = ["aio", "tokio-comp"] }
 
 [dev-dependencies]
 reqwest = { version = "0.11", features = ["json", "blocking", "multipart"] }
