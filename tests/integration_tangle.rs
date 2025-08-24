@@ -1,16 +1,18 @@
 mod common;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64_ENGINE;
 use common::{create_test_db_and_pool, spawn_app_with_plugins};
 use reqwest::StatusCode;
 use serde_json::Value;
-use base64::engine::general_purpose::STANDARD as BASE64_ENGINE;
-use base64::Engine;
 
 #[tokio::test]
 async fn tangle_crud() -> anyhow::Result<()> {
-    let test_db = std::env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/ecoblock_test".to_string());
+    let test_db = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
+        "postgres://postgres:postgres@localhost:5432/ecoblock_test".to_string()
+    });
     let (pool, _guard) = create_test_db_and_pool(&test_db).await?;
-    let tangle_plugin = ecoblock_api_kernel::plugins::tangle::plugin::TanglePlugin::new(pool.clone());
+    let tangle_plugin =
+        ecoblock_api_kernel::plugins::tangle::plugin::TanglePlugin::new(pool.clone());
     let plugins: Vec<Box<dyn ecoblock_api_kernel::kernel::Plugin>> = vec![
         Box::new(ecoblock_api_kernel::plugins::health::HealthPlugin),
         Box::new(tangle_plugin),
@@ -26,18 +28,28 @@ async fn tangle_crud() -> anyhow::Result<()> {
         "public_key": "pk"
     });
 
-    let create = client.post(&format!("{}/tangle/blocks", base)).json(&payload).send().await?;
+    let create = client
+        .post(&format!("{}/tangle/blocks", base))
+        .json(&payload)
+        .send()
+        .await?;
     assert_eq!(create.status(), StatusCode::OK);
     let created: Value = create.json().await?;
     let block_id_str = created["id"].as_str().unwrap().to_string();
     let block_uuid: uuid::Uuid = block_id_str.parse()?;
 
     // get
-    let one = client.get(&format!("{}/tangle/{}", base, block_uuid)).send().await?;
+    let one = client
+        .get(&format!("{}/tangle/{}", base, block_uuid))
+        .send()
+        .await?;
     assert_eq!(one.status(), StatusCode::OK);
 
     // list
-    let list = client.get(&format!("{}/tangle/blocks", base)).send().await?;
+    let list = client
+        .get(&format!("{}/tangle/blocks", base))
+        .send()
+        .await?;
     assert_eq!(list.status(), StatusCode::OK);
 
     // update
@@ -49,7 +61,10 @@ async fn tangle_crud() -> anyhow::Result<()> {
     assert_eq!(upd.status(), StatusCode::OK);
 
     // delete
-    let del = client.delete(&format!("{}/tangle/{}", base, block_uuid)).send().await?;
+    let del = client
+        .delete(&format!("{}/tangle/{}", base, block_uuid))
+        .send()
+        .await?;
     assert_eq!(del.status(), StatusCode::NO_CONTENT);
 
     server_handle.abort();

@@ -1,6 +1,6 @@
-use axum::response::{IntoResponse, Response};
 use axum::Json;
 use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use sqlx::Error as SqlxError;
 
@@ -19,9 +19,13 @@ pub struct AppError {
 
 impl AppError {
     pub fn new(status: StatusCode, message: impl Into<String>) -> Self {
-    Self { status, message: message.into(), code: None }
+        Self {
+            status,
+            message: message.into(),
+            code: None,
+        }
     }
-    
+
     pub fn with_code(mut self, code: impl Into<String>) -> Self {
         self.code = Some(code.into());
         self
@@ -30,14 +34,17 @@ impl AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-    let body = ErrorBody { error: self.message, code: self.code };
-    (self.status, Json(body)).into_response()
+        let body = ErrorBody {
+            error: self.message,
+            code: self.code,
+        };
+        (self.status, Json(body)).into_response()
     }
 }
 
 impl From<(StatusCode, String)> for AppError {
     fn from((status, msg): (StatusCode, String)) -> Self {
-    AppError::new(status, msg)
+        AppError::new(status, msg)
     }
 }
 
@@ -51,7 +58,9 @@ impl From<SqlxError> for AppError {
                     if code == "23505" {
                         if let Some(cons) = db.constraint() {
                             let code_str = match cons {
-                                "users_username_key" | "users_username_unique" => "duplicate_username",
+                                "users_username_key" | "users_username_unique" => {
+                                    "duplicate_username"
+                                }
                                 "users_email_key" | "users_email_unique" => "duplicate_email",
                                 other => {
                                     if other.contains("username") {
@@ -63,9 +72,17 @@ impl From<SqlxError> for AppError {
                                     }
                                 }
                             };
-                            return AppError { status: StatusCode::CONFLICT, message: "duplicateKey".to_string(), code: Some(code_str.to_string()) };
+                            return AppError {
+                                status: StatusCode::CONFLICT,
+                                message: "duplicateKey".to_string(),
+                                code: Some(code_str.to_string()),
+                            };
                         }
-                        return AppError { status: StatusCode::CONFLICT, message: "duplicateKey".to_string(), code: Some("duplicate_key".to_string()) };
+                        return AppError {
+                            status: StatusCode::CONFLICT,
+                            message: "duplicateKey".to_string(),
+                            code: Some("duplicate_key".to_string()),
+                        };
                     }
                 }
                 AppError::new(StatusCode::INTERNAL_SERVER_ERROR, db.message().to_string())

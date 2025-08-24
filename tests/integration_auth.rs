@@ -5,7 +5,9 @@ use serde_json::Value;
 
 #[tokio::test]
 async fn integration_auth_flow() -> anyhow::Result<()> {
-    let test_db = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/ecoblock_test".to_string());
+    let test_db = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
+        "postgres://postgres:postgres@localhost:5432/ecoblock_test".to_string()
+    });
     let (base, server_handle, jwt_secret, _pool, _guard) = setup_and_spawn(&test_db).await?;
     let client = reqwest::Client::new();
 
@@ -19,7 +21,8 @@ async fn integration_auth_flow() -> anyhow::Result<()> {
     let created_id = created["id"].as_str().unwrap().to_string();
 
     // login
-    let login = client.post(&format!("{}/auth/login", base))
+    let login = client
+        .post(&format!("{}/auth/login", base))
         .json(&serde_json::json!({"username":"ituser_auth","password":"password123"}))
         .send()
         .await?;
@@ -29,12 +32,19 @@ async fn integration_auth_flow() -> anyhow::Result<()> {
 
     // decode token and assert sub equals created id
     #[derive(serde::Deserialize)]
-    struct Claims { sub: String }
-    let token_data = jsonwebtoken::decode::<Claims>(token, &jsonwebtoken::DecodingKey::from_secret(jwt_secret.as_bytes()), &jsonwebtoken::Validation::default())?;
+    struct Claims {
+        sub: String,
+    }
+    let token_data = jsonwebtoken::decode::<Claims>(
+        token,
+        &jsonwebtoken::DecodingKey::from_secret(jwt_secret.as_bytes()),
+        &jsonwebtoken::Validation::default(),
+    )?;
     assert_eq!(token_data.claims.sub, created_id);
 
     // whoami
-    let who = client.get(&format!("{}/auth/whoami", base))
+    let who = client
+        .get(&format!("{}/auth/whoami", base))
         .bearer_auth(token)
         .send()
         .await?;
@@ -51,12 +61,15 @@ async fn integration_auth_flow() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn invalid_credentials_returns_401_and_code() -> anyhow::Result<()> {
-    let test_db = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/ecoblock_test".to_string());
+    let test_db = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
+        "postgres://postgres:postgres@localhost:5432/ecoblock_test".to_string()
+    });
     let (base, server_handle, _jwt_secret, _pool, _guard) = setup_and_spawn(&test_db).await?;
     let client = reqwest::Client::new();
 
     // attempt login with non-existing user
-    let login = client.post(&format!("{}/auth/login", base))
+    let login = client
+        .post(&format!("{}/auth/login", base))
         .json(&serde_json::json!({"username":"no_such","password":"bad"}))
         .send()
         .await?;
@@ -71,12 +84,15 @@ async fn invalid_credentials_returns_401_and_code() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn malformed_token_returns_401_invalid_token() -> anyhow::Result<()> {
-    let test_db = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/ecoblock_test".to_string());
+    let test_db = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
+        "postgres://postgres:postgres@localhost:5432/ecoblock_test".to_string()
+    });
     let (base, server_handle, _jwt_secret, _pool, _guard) = setup_and_spawn(&test_db).await?;
     let client = reqwest::Client::new();
 
     // call whoami with a malformed token
-    let who = client.get(&format!("{}/auth/whoami", base))
+    let who = client
+        .get(&format!("{}/auth/whoami", base))
         .bearer_auth("not-a-jwt")
         .send()
         .await?;
@@ -91,7 +107,9 @@ async fn malformed_token_returns_401_invalid_token() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn expired_token_returns_401() -> anyhow::Result<()> {
-    let test_db = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/ecoblock_test".to_string());
+    let test_db = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
+        "postgres://postgres:postgres@localhost:5432/ecoblock_test".to_string()
+    });
     let (base, server_handle, jwt_secret, _pool, _guard) = setup_and_spawn(&test_db).await?;
     let client = reqwest::Client::new();
 
@@ -107,10 +125,15 @@ async fn expired_token_returns_401() -> anyhow::Result<()> {
     // create an expired token manually (exp in the past)
     let exp = (chrono::Utc::now() - chrono::Duration::hours(1)).timestamp() as usize;
     let claims = serde_json::json!({ "sub": created_id.clone(), "exp": exp });
-    let token = jsonwebtoken::encode(&jsonwebtoken::Header::default(), &claims, &jsonwebtoken::EncodingKey::from_secret(jwt_secret.as_bytes()))?;
+    let token = jsonwebtoken::encode(
+        &jsonwebtoken::Header::default(),
+        &claims,
+        &jsonwebtoken::EncodingKey::from_secret(jwt_secret.as_bytes()),
+    )?;
 
     // whoami with expired token
-    let who = client.get(&format!("{}/auth/whoami", base))
+    let who = client
+        .get(&format!("{}/auth/whoami", base))
         .bearer_auth(&token)
         .send()
         .await?;

@@ -1,6 +1,6 @@
-use axum::{Router, routing::get, Json};
-use serde::Serialize;
 use crate::kernel::Plugin;
+use axum::{Json, Router, routing::get};
+use serde::Serialize;
 
 #[derive(Serialize)]
 struct Health {

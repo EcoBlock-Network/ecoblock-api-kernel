@@ -1,13 +1,17 @@
-use axum::{Router, routing::get, routing::post, routing::put, routing::delete, Extension};
 use crate::kernel::Plugin;
 use crate::plugins::communication::blog::handlers::*;
+use axum::{Extension, Router, routing::delete, routing::get, routing::post, routing::put};
 use sqlx::PgPool;
 
-pub struct BlogPlugin { pub pool: PgPool }
+pub struct BlogPlugin {
+    pub pool: PgPool,
+}
 
 impl BlogPlugin {
     #[allow(dead_code)]
-    pub fn new(pool: PgPool) -> Self { Self { pool } }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
 }
 
 #[async_trait::async_trait]
@@ -22,5 +26,7 @@ impl Plugin for BlogPlugin {
             .layer(Extension(self.pool.clone()))
     }
 
-    fn name(&self) -> &'static str { "communication/blog" }
+    fn name(&self) -> &'static str {
+        "communication/blog"
+    }
 }

@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 #[derive(Serialize, Deserialize, Debug, FromRow)]
@@ -30,4 +30,3 @@ pub struct StoryDto {
     pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
     pub created_by: String,
 }
-

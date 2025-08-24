@@ -1,9 +1,16 @@
-use sqlx::PgPool;
 use crate::http_error::AppError;
 use crate::plugins::communication::blog::models::BlogDto;
+use sqlx::PgPool;
 use uuid::Uuid;
 
-pub async fn insert_blog(pool: &PgPool, title: &str, slug: &str, body: &str, author: &str, is_active: bool) -> Result<BlogDto, AppError> {
+pub async fn insert_blog(
+    pool: &PgPool,
+    title: &str,
+    slug: &str,
+    body: &str,
+    author: &str,
+    is_active: bool,
+) -> Result<BlogDto, AppError> {
     let dto = sqlx::query_as::<_, BlogDto>("INSERT INTO blogs (title, slug, body, author, is_active) VALUES ($1,$2,$3,$4,$5) RETURNING id, title, slug, body, author, is_active, created_at, updated_at")
         .bind(title)
         .bind(slug)
@@ -26,7 +33,12 @@ pub async fn get_blog(pool: &PgPool, id: Uuid) -> Result<BlogDto, AppError> {
 }
 
 #[allow(dead_code)]
-pub async fn list_blogs(pool: &PgPool, where_sql: &str, per_page: i64, offset: i64) -> Result<(Vec<BlogDto>, i64), AppError> {
+pub async fn list_blogs(
+    pool: &PgPool,
+    where_sql: &str,
+    per_page: i64,
+    offset: i64,
+) -> Result<(Vec<BlogDto>, i64), AppError> {
     // We keep the dynamic query builder in handlers for flexibility; this function accepts the final SQL.
     let items: Vec<BlogDto> = sqlx::query_as::<_, BlogDto>(where_sql)
         .bind(per_page)
@@ -43,7 +55,15 @@ pub async fn list_blogs(pool: &PgPool, where_sql: &str, per_page: i64, offset: i
     Ok((items, total))
 }
 
-pub async fn update_blog(pool: &PgPool, id: Uuid, title: Option<String>, slug: Option<String>, body: Option<String>, author: Option<String>, is_active: Option<bool>) -> Result<BlogDto, AppError> {
+pub async fn update_blog(
+    pool: &PgPool,
+    id: Uuid,
+    title: Option<String>,
+    slug: Option<String>,
+    body: Option<String>,
+    author: Option<String>,
+    is_active: Option<bool>,
+) -> Result<BlogDto, AppError> {
     let dto = sqlx::query_as::<_, BlogDto>("UPDATE blogs SET title = COALESCE($1, title), slug = COALESCE($2, slug), body = COALESCE($3, body), author = COALESCE($4, author), is_active = COALESCE($5, is_active), updated_at = now() WHERE id = $6 RETURNING id, title, slug, body, author, is_active, created_at, updated_at")
         .bind(title)
         .bind(slug)
@@ -58,6 +78,10 @@ pub async fn update_blog(pool: &PgPool, id: Uuid, title: Option<String>, slug: O
 }
 
 pub async fn delete_blog(pool: &PgPool, id: Uuid) -> Result<(), AppError> {
-    sqlx::query("DELETE FROM blogs WHERE id = $1").bind(id).execute(pool).await.map_err(AppError::from)?;
+    sqlx::query("DELETE FROM blogs WHERE id = $1")
+        .bind(id)
+        .execute(pool)
+        .await
+        .map_err(AppError::from)?;
     Ok(())
 }

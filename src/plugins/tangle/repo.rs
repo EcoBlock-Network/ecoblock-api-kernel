@@ -1,7 +1,7 @@
-use sqlx::PgPool;
 use crate::http_error::AppError;
 use crate::plugins::tangle::models::TangleBlockRow;
 use serde_json::Value;
+use sqlx::PgPool;
 use uuid::Uuid;
 
 pub async fn insert_block(
@@ -39,7 +39,11 @@ pub async fn get_block(pool: &PgPool, id: Uuid) -> Result<TangleBlockRow, AppErr
     Ok(row)
 }
 
-pub async fn list_blocks(pool: &PgPool, per_page: i64, offset: i64) -> Result<(Vec<TangleBlockRow>, i64), AppError> {
+pub async fn list_blocks(
+    pool: &PgPool,
+    per_page: i64,
+    offset: i64,
+) -> Result<(Vec<TangleBlockRow>, i64), AppError> {
     let rows: Vec<TangleBlockRow> = sqlx::query_as::<_, TangleBlockRow>(
         "SELECT id, parents, data, signature, public_key, created_at FROM public.tangle_blocks ORDER BY created_at DESC LIMIT $1 OFFSET $2"
     )
@@ -81,6 +85,10 @@ pub async fn update_block(
 }
 
 pub async fn delete_block(pool: &PgPool, id: Uuid) -> Result<(), AppError> {
-    sqlx::query("DELETE FROM public.tangle_blocks WHERE id = $1").bind(id).execute(pool).await.map_err(AppError::from)?;
+    sqlx::query("DELETE FROM public.tangle_blocks WHERE id = $1")
+        .bind(id)
+        .execute(pool)
+        .await
+        .map_err(AppError::from)?;
     Ok(())
 }

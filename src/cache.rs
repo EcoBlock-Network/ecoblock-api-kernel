@@ -26,7 +26,9 @@ mod inmem {
         pub fn new(capacity: usize) -> Self {
             use std::num::NonZeroUsize;
             let nz = NonZeroUsize::new(capacity).unwrap_or(NonZeroUsize::new(1).unwrap());
-            Self { inner: Mutex::new(LruCache::new(nz)) }
+            Self {
+                inner: Mutex::new(LruCache::new(nz)),
+            }
         }
 
         fn hash_key(key: &str) -> u64 {
@@ -43,7 +45,12 @@ mod inmem {
             Ok(self.inner.lock().get(&k).cloned())
         }
 
-        async fn set(&self, key: &str, value: Vec<u8>, _ttl: Option<Duration>) -> anyhow::Result<()> {
+        async fn set(
+            &self,
+            key: &str,
+            value: Vec<u8>,
+            _ttl: Option<Duration>,
+        ) -> anyhow::Result<()> {
             let k = Self::hash_key(key);
             self.inner.lock().put(k, value);
             Ok(())
@@ -61,7 +68,6 @@ mod inmem {
             Arc::new(self)
         }
     }
-
 }
 
 pub use inmem::InMemoryCache;
@@ -94,11 +100,21 @@ mod redis_backend {
             Ok(res)
         }
 
-        async fn set(&self, key: &str, value: Vec<u8>, ttl: Option<std::time::Duration>) -> anyhow::Result<()> {
+        async fn set(
+            &self,
+            key: &str,
+            value: Vec<u8>,
+            ttl: Option<std::time::Duration>,
+        ) -> anyhow::Result<()> {
             let mut conn = self.client.get_tokio_connection().await?;
             if let Some(secs) = Self::ttl_to_redis_seconds(ttl) {
                 let secs_u64: u64 = secs as u64;
-                let _: () = redis::cmd("SETEX").arg(key).arg(secs_u64).arg(value).query_async(&mut conn).await?;
+                let _: () = redis::cmd("SETEX")
+                    .arg(key)
+                    .arg(secs_u64)
+                    .arg(value)
+                    .query_async(&mut conn)
+                    .await?;
             } else {
                 let _: () = conn.set(key, value).await?;
             }
@@ -117,7 +133,6 @@ mod redis_backend {
             Arc::new(self)
         }
     }
-
 }
 
 pub use redis_backend::RedisCache;
