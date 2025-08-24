@@ -76,15 +76,21 @@ mod redis_backend {
     use super::*;
     use redis::AsyncCommands;
     use redis::Client;
+    use redis::aio::MultiplexedConnection;
+    use std::sync::Arc as StdArc;
+    use tokio::sync::Mutex as AsyncMutex;
 
     pub struct RedisCache {
-        client: Client,
+        conn: StdArc<AsyncMutex<MultiplexedConnection>>,
     }
 
     impl RedisCache {
         pub async fn new(url: &str) -> anyhow::Result<Self> {
             let client = Client::open(url)?;
-            Ok(Self { client })
+            let conn = client.get_multiplexed_tokio_connection().await?;
+            Ok(Self {
+                conn: StdArc::new(AsyncMutex::new(conn)),
+            })
         }
 
         fn ttl_to_redis_seconds(ttl: Option<std::time::Duration>) -> Option<usize> {
@@ -95,8 +101,8 @@ mod redis_backend {
     #[async_trait]
     impl Cache for RedisCache {
         async fn get(&self, key: &str) -> anyhow::Result<Option<Vec<u8>>> {
-            let mut conn = self.client.get_tokio_connection().await?;
-            let res: Option<Vec<u8>> = conn.get(key).await?;
+            let mut guard = self.conn.lock().await;
+            let res: Option<Vec<u8>> = guard.get(key).await?;
             Ok(res)
         }
 
@@ -106,24 +112,24 @@ mod redis_backend {
             value: Vec<u8>,
             ttl: Option<std::time::Duration>,
         ) -> anyhow::Result<()> {
-            let mut conn = self.client.get_tokio_connection().await?;
+            let mut guard = self.conn.lock().await;
             if let Some(secs) = Self::ttl_to_redis_seconds(ttl) {
                 let secs_u64: u64 = secs as u64;
                 let _: () = redis::cmd("SETEX")
                     .arg(key)
                     .arg(secs_u64)
                     .arg(value)
-                    .query_async(&mut conn)
+                    .query_async(&mut *guard)
                     .await?;
             } else {
-                let _: () = conn.set(key, value).await?;
+                let _: () = guard.set(key, value).await?;
             }
             Ok(())
         }
 
         async fn delete(&self, key: &str) -> anyhow::Result<()> {
-            let mut conn = self.client.get_tokio_connection().await?;
-            let _: () = conn.del(key).await?;
+            let mut guard = self.conn.lock().await;
+            let _: () = guard.del(key).await?;
             Ok(())
         }
     }

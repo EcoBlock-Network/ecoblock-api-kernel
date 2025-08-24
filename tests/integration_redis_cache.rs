@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 mod common;
-use common::create_test_db_and_pool; // reuse DB helper to keep deps similar
+// reuse DB helper if needed
 
 #[tokio::test]
 async fn redis_cache_get_set_delete_smoke() -> anyhow::Result<()> {
