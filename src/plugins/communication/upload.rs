@@ -8,7 +8,6 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 pub async fn upload_file(mut multipart: Multipart) -> Result<Json<serde_json::Value>, AppError> {
-    // ensure upload dir exists
     let mut uploaded_urls: Vec<String> = Vec::new();
     let base_dir = std::path::Path::new("data/uploads");
     if !base_dir.exists() {
@@ -20,9 +19,8 @@ pub async fn upload_file(mut multipart: Multipart) -> Result<Json<serde_json::Va
         })?;
     }
 
-    // server-side validation settings
-    const MAX_SIZE: usize = 10 * 1024 * 1024; // 10 MB
-    const MAX_DIM: u32 = 2000; // max width/height for auto-resize
+    const MAX_SIZE: usize = 10 * 1024 * 1024;
+    const MAX_DIM: u32 = 2000;
     let allowed_mimes = vec!["image/png", "image/jpeg", "image/gif", "image/webp"];
 
     while let Some(field) = multipart
@@ -38,14 +36,12 @@ pub async fn upload_file(mut multipart: Multipart) -> Result<Json<serde_json::Va
                     format!("multipart read error: {}", e),
                 ))
             })?;
-            // size check
             if data.len() > MAX_SIZE {
                 return Err(AppError::from((
                     StatusCode::BAD_REQUEST,
                     format!("file too large (max {} MB)", MAX_SIZE / 1024 / 1024),
                 )));
             }
-            // sniff content-type from bytes
             let kind = infer::get(&data);
             let mime = kind
                 .map(|k| k.mime_type())
@@ -56,22 +52,18 @@ pub async fn upload_file(mut multipart: Multipart) -> Result<Json<serde_json::Va
                     format!("unsupported file type: {}", mime),
                 )));
             }
-            // extension from mime
             let ext = match mime {
                 "image/png" => "png",
                 "image/jpeg" => "jpg",
                 "image/gif" => "gif",
                 "image/webp" => "webp",
                 _ => {
-                    // fallback to original extension if unknown
                     std::path::Path::new(&filename)
                         .extension()
                         .and_then(|s| s.to_str())
                         .unwrap_or("bin")
                 }
             };
-
-            // attempt to resize large images to MAX_DIM (preserve aspect)
             let mut final_bytes = data.to_vec();
             if mime.starts_with("image/") {
                 if let Ok(reader) =

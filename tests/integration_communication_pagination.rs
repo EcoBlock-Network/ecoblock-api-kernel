@@ -8,7 +8,6 @@ use ecoblock_api_kernel::db;
 use ecoblock_api_kernel::kernel::build_app;
 use ecoblock_api_kernel::plugins::communication::blog::plugin::BlogPlugin;
 
-// Minimal TestDbGuard copied pattern
 struct TestDbGuard {
     maintenance_url: String,
     unique_db: String,

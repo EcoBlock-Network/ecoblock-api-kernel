@@ -17,7 +17,6 @@ async fn health_handler() -> Json<Health> {
 #[async_trait::async_trait]
 impl Plugin for HealthPlugin {
     async fn router(&self) -> Router {
-        // expose health at root of the plugin mount point
         Router::new().route("/", get(health_handler))
     }
 

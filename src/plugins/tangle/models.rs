@@ -8,7 +8,7 @@ pub struct TangleBlockCreate {
     pub id: Option<uuid::Uuid>,
     pub parents: Vec<String>,
     pub data: serde_json::Value,
-    pub signature: String, // base64 encoded in payload
+    pub signature: String,
     pub public_key: String,
 }
 
@@ -25,13 +25,11 @@ pub struct TangleBlockDto {
     pub id: uuid::Uuid,
     pub parents: Vec<String>,
     pub data: serde_json::Value,
-    // API-facing signature is base64 encoded
     pub signature: String,
     pub public_key: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-// Internal DB representation (signature as bytes)
 #[derive(Debug, sqlx::FromRow)]
 pub struct TangleBlockRow {
     pub id: uuid::Uuid,

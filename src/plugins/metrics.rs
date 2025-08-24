@@ -15,7 +15,6 @@ impl MetricsPlugin {
     pub fn new() -> Self {
         let registry = Registry::new();
         let ctr_opts = Opts::new("requests_total", "Total HTTP requests");
-        // use 'route' as a lower-cardinality label instead of raw path
         let counter =
             IntCounterVec::new(ctr_opts, &["method", "route", "status"]).expect("counter");
         registry.register(Box::new(counter.clone())).ok();
@@ -24,15 +23,12 @@ impl MetricsPlugin {
             "request_duration_seconds",
             "HTTP request latencies in seconds",
         );
-        // sensible buckets for HTTP latencies (seconds)
         hist_opts.buckets = vec![
             0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
         ];
         let histogram = HistogramVec::new(hist_opts, &["method", "route"]).expect("histogram");
         registry.register(Box::new(histogram.clone())).ok();
 
-        // register process collector when available (platform/feature gated in prometheus crate)
-        // register process collector only on Linux when the prometheus `process` feature is enabled
         #[cfg(target_os = "linux")]
         {
             let collector = prometheus::process_collector::ProcessCollector::for_self();
