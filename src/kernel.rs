@@ -65,8 +65,15 @@ pub async fn build_app(
 
         let router = router.layer(axum::middleware::from_fn(
             |req: Request<Body>, next: Next| async move {
-                const ALLOWED_ORIGINS: [&str; 2] =
-                    ["http://localhost:5173", "http://localhost:5174"];
+                let allowed_env = std::env::var("ALLOWED_ORIGINS").ok();
+                let allowed_list: Vec<String> = allowed_env
+                    .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
+                    .unwrap_or_else(|| {
+                        vec![
+                            "http://localhost:5173".to_string(),
+                            "http://localhost:5174".to_string(),
+                        ]
+                    });
 
                 let origin_hdr = req
                     .headers()
@@ -75,7 +82,7 @@ pub async fn build_app(
                     .map(|s| s.to_string());
                 let allowed_origin = origin_hdr
                     .as_deref()
-                    .filter(|o| ALLOWED_ORIGINS.contains(o));
+                    .filter(|o| allowed_list.iter().any(|a| a == o));
 
                 if req.method() == Method::OPTIONS {
                     let mut res = Response::new(Body::empty());
