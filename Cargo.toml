@@ -29,7 +29,7 @@ mime_guess = "2.0"
 tokio-test = { version = "0.4", optional = true }
 prometheus = { version = "0.14", features = ["process"] }
 ed25519-dalek = "1.0.1"
-rand = "0.8"
+rand = "0.9"
 infer = "0.12"
 image = { version = "0.24", features = ["png", "jpeg", "gif", "webp"] }
 lru = "0.8"
