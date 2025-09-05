@@ -22,6 +22,7 @@ pub async fn build_app(
     plugins: &Vec<Box<dyn Plugin>>,
     metrics: Option<MaybeMetrics>,
     cache: Option<DynCache>,
+    api_key: Option<String>,
 ) -> Router {
     let mut app = Router::new();
 
@@ -63,59 +64,83 @@ pub async fn build_app(
             ));
         }
 
-        let router = router.layer(axum::middleware::from_fn(
-            |req: Request<Body>, next: Next| async move {
-                let allowed_env = std::env::var("ALLOWED_ORIGINS").ok();
-                let allowed_list: Vec<String> = allowed_env
-                    .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
-                    .unwrap_or_else(|| {
-                        vec![
-                            "http://localhost:5173".to_string(),
-                            "http://localhost:5174".to_string(),
-                        ]
-                    });
-
-                let origin_hdr = req
-                    .headers()
-                    .get(ORIGIN)
-                    .and_then(|v| v.to_str().ok())
-                    .map(|s| s.to_string());
-                let allowed_origin = origin_hdr
-                    .as_deref()
-                    .filter(|o| allowed_list.iter().any(|a| a == o));
-
-                if req.method() == Method::OPTIONS {
-                    let mut res = Response::new(Body::empty());
-                    *res.status_mut() = StatusCode::OK;
-                    if let Some(o) = allowed_origin {
-                        if let Ok(hv) = HeaderValue::from_str(o) {
-                            res.headers_mut().insert("access-control-allow-origin", hv);
+        // API key middleware: require x-api-key for all plugin routes except health when configured
+        let api_key_for_mw = api_key.clone();
+        let plugin_name = plugin.name().to_string();
+        router = router.layer(axum::middleware::from_fn(move |req: Request<Body>, next: Next| {
+            let api_key_for_mw = api_key_for_mw.clone();
+            let plugin_name = plugin_name.clone();
+            async move {
+                if api_key_for_mw.is_some() && plugin_name != "health" {
+                    if req.method() != Method::OPTIONS {
+                        let header_val = req
+                            .headers()
+                            .get("x-api-key")
+                            .and_then(|v| v.to_str().ok())
+                            .map(|s| s.to_string());
+                        if header_val.as_deref() != api_key_for_mw.as_deref() {
+                            let mut res = Response::new(Body::empty());
+                            *res.status_mut() = StatusCode::UNAUTHORIZED;
+                            return res;
                         }
                     }
-                    res.headers_mut().insert(
-                        "access-control-allow-methods",
-                        HeaderValue::from_static("GET,POST,PUT,DELETE,OPTIONS"),
-                    );
-                    res.headers_mut().insert(
-                        "access-control-allow-headers",
-                        HeaderValue::from_static("*"),
-                    );
-                    return res;
                 }
+                next.run(req).await
+            }
+        }));
 
-                let mut res = next.run(req).await;
+        // CORS middleware
+        router = router.layer(axum::middleware::from_fn(|req: Request<Body>, next: Next| async move {
+            let allowed_env = std::env::var("ALLOWED_ORIGINS").ok();
+            let allowed_list: Vec<String> = allowed_env
+                .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
+                .unwrap_or_else(|| {
+                    vec![
+                        "http://localhost:5173".to_string(),
+                        "http://localhost:5174".to_string(),
+                    ]
+                });
+
+            let origin_hdr = req
+                .headers()
+                .get(ORIGIN)
+                .and_then(|v| v.to_str().ok())
+                .map(|s| s.to_string());
+            let allowed_origin = origin_hdr
+                .as_deref()
+                .filter(|o| allowed_list.iter().any(|a| a == o));
+
+            if req.method() == Method::OPTIONS {
+                let mut res = Response::new(Body::empty());
+                *res.status_mut() = StatusCode::OK;
                 if let Some(o) = allowed_origin {
                     if let Ok(hv) = HeaderValue::from_str(o) {
                         res.headers_mut().insert("access-control-allow-origin", hv);
                     }
                 }
                 res.headers_mut().insert(
+                    "access-control-allow-methods",
+                    HeaderValue::from_static("GET,POST,PUT,DELETE,OPTIONS"),
+                );
+                res.headers_mut().insert(
                     "access-control-allow-headers",
                     HeaderValue::from_static("*"),
                 );
-                res
-            },
-        ));
+                return res;
+            }
+
+            let mut res = next.run(req).await;
+            if let Some(o) = allowed_origin {
+                if let Ok(hv) = HeaderValue::from_str(o) {
+                    res.headers_mut().insert("access-control-allow-origin", hv);
+                }
+            }
+            res.headers_mut().insert(
+                "access-control-allow-headers",
+                HeaderValue::from_static("*"),
+            );
+            res
+        }));
 
         let ext_cache = cache.clone();
         app = app.nest(

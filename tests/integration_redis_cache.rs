@@ -1,11 +1,9 @@
 use std::time::Duration;
 
 mod common;
-// reuse DB helper if needed
 
 #[tokio::test]
 async fn redis_cache_get_set_delete_smoke() -> anyhow::Result<()> {
-    // Try to read REDIS_URL from env; skip test if not present or unreachable
     let redis_url = match std::env::var("REDIS_URL") {
         Ok(u) => u,
         Err(_) => {
@@ -14,7 +12,6 @@ async fn redis_cache_get_set_delete_smoke() -> anyhow::Result<()> {
         }
     };
 
-    // Try connecting
     let cache = match ecoblock_api_kernel::cache::RedisCache::new(&redis_url).await {
         Ok(c) => c.into_arc(),
         Err(e) => {
@@ -26,7 +23,6 @@ async fn redis_cache_get_set_delete_smoke() -> anyhow::Result<()> {
         }
     };
 
-    // Use cache via trait
     let key = "test:redis:smoke";
     cache
         .set(key, b"hello".to_vec(), Some(Duration::from_secs(5)))

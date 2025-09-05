@@ -18,13 +18,11 @@ async fn communication_blog_crud_and_list() -> anyhow::Result<()> {
     let (base, server_handle) = spawn_app_with_plugins(pool.clone(), plugins).await?;
     let client = reqwest::Client::new();
 
-    // create blog
     let create = client
         .post(&format!("{}/communication/blog", base))
         .json(&serde_json::json!({"title":"Hello","slug":"hello","body":"body","author":"alice"}))
         .send()
         .await?;
-    // consume response body into a string so we can log it and still parse JSON
     let status = create.status();
     let body_text = create
         .text()

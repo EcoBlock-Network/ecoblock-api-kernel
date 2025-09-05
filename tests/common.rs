@@ -114,7 +114,7 @@ pub async fn spawn_app_with_plugins(
 ) -> anyhow::Result<(String, tokio::task::JoinHandle<()>)> {
     // Create an in-memory cache for tests and pass it to the app so handlers can use it.
     let cache = ecoblock_api_kernel::cache::InMemoryCache::new(1024).into_arc();
-    let app = build_app(&plugins, None, Some(cache)).await;
+    let app = build_app(&plugins, None, Some(cache), None).await;
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let addr = listener.local_addr()?;
     let server_handle = tokio::spawn(async move {

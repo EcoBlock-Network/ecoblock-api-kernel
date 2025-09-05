@@ -89,7 +89,7 @@ async fn setup_with_plugin(
         Box::new(ecoblock_api_kernel::plugins::health::HealthPlugin),
         Box::new(blog_plugin),
     ];
-    let app = build_app(&plugins, None, None).await;
+    let app = build_app(&plugins, None, None, None).await;
 
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let addr = listener.local_addr()?;

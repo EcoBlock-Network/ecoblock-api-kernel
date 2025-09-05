@@ -62,7 +62,7 @@ mod tests {
         let users_plugin = crate::plugins::users::UsersPlugin::new(pool.clone());
         let plugins: Vec<Box<dyn crate::kernel::Plugin>> =
             vec![Box::new(HealthPlugin), Box::new(users_plugin)];
-        let app = build_app(&plugins, None, None).await;
+    let app = build_app(&plugins, None, None, None).await;
 
         let req = Request::builder()
             .method(Method::GET)
@@ -192,4 +192,44 @@ mod tests {
 
         Ok(())
     }
+
+        #[test]
+        fn create_user_model_deserialize_and_fields() {
+            use crate::plugins::users::models::CreateUser;
+            let json = r#"{"username":"testuser","email":"test@example.com","password":"secretpass"}"#;
+            let cu: CreateUser = serde_json::from_str(json).expect("should deserialize CreateUser");
+            assert_eq!(cu.username, "testuser");
+            assert_eq!(cu.email, "test@example.com");
+            assert_eq!(cu.password, "secretpass");
+        }
+
+        #[test]
+        fn update_user_model_optional_fields() {
+            use crate::plugins::users::models::UpdateUser;
+            let json = r#"{}"#;
+            let u: UpdateUser = serde_json::from_str(json).expect("should deserialize UpdateUser");
+            assert!(u.username.is_none());
+            assert!(u.email.is_none());
+
+            let json2 = r#"{"username":"newname"}"#;
+            let u2: UpdateUser = serde_json::from_str(json2).expect("should deserialize UpdateUser partial");
+            assert_eq!(u2.username.unwrap(), "newname");
+            assert!(u2.email.is_none());
+        }
+
+        #[test]
+        fn user_dto_serializes_with_expected_fields() {
+            use crate::plugins::users::models::UserDto;
+            use uuid::Uuid;
+            let id = Uuid::new_v4();
+            let dto = UserDto {
+                id,
+                username: "u1".to_string(),
+                email: "e@x.com".to_string(),
+            };
+            let s = serde_json::to_string(&dto).expect("should serialize UserDto");
+            assert!(s.contains(&id.to_string()));
+            assert!(s.contains("u1"));
+            assert!(s.contains("e@x.com"));
+        }
 }
