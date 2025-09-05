@@ -39,7 +39,7 @@ pub async fn list_blogs(
     per_page: i64,
     offset: i64,
 ) -> Result<(Vec<BlogDto>, i64), AppError> {
-    // We keep the dynamic query builder in handlers for flexibility; this function accepts the final SQL.
+    
     let items: Vec<BlogDto> = sqlx::query_as::<_, BlogDto>(where_sql)
         .bind(per_page)
         .bind(offset)

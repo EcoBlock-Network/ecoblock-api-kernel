@@ -2,11 +2,9 @@
 set -euo pipefail
 
 # Usage: scripts/reset-db.sh
-# Drops and recreates the ecoblock DB and runs migrations via the app.
 
 DB_URL=${DATABASE_URL:-postgres://ecoblock:ecopass@localhost:5432/ecoblock}
 
-# parse database name from URL (simple)
 DB_NAME=$(echo "$DB_URL" | sed -E 's|.*/([^/?]+)(\?.*)?$|\1|')
 DB_USER=$(echo "$DB_URL" | sed -E 's|postgres://([^:]+):.*@.*|\1|')
 

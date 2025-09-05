@@ -81,7 +81,7 @@ pub async fn list_blogs(
         params.len() + 1,
         params.len() + 2
     );
-    // build params bindings manually in handlers, then pass final SQL to repo which will execute
+    
     let mut items_q = sqlx::query_as::<_, BlogDto>(&items_sql);
     for p in &params {
         match p {

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # scripts/db-setup.sh
-# Apply DB grants needed by the ecoblock app. Safe to run multiple times.
 
 set -euo pipefail
 PSQL_URL=${DATABASE_URL:-postgres://postgres:postgres@localhost:5432/ecoblock}

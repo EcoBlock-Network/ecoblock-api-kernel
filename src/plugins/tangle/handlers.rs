@@ -12,17 +12,17 @@ pub async fn create_block(
     Extension(pool): Extension<PgPool>,
     Json(payload): Json<TangleBlockCreate>,
 ) -> Result<Json<TangleBlockDto>, AppError> {
-    // validate base64 signature and decode to bytes for storage
+    
     let sig_bytes = BASE64_ENGINE.decode(&payload.signature).map_err(|e| {
         AppError::new(
             axum::http::StatusCode::BAD_REQUEST,
             format!("invalidSignatureEncoding: {}", e),
         )
     })?;
-    // if public_key is base64 and decodes to 32 bytes we attempt Ed25519 verification
+    
     if let Ok(pk_bytes) = BASE64_ENGINE.decode(&payload.public_key) {
         if pk_bytes.len() == 32 {
-            // verify signature over canonical JSON bytes of `data`
+            
             let msg = serde_json::to_vec(&payload.data).map_err(|e| {
                 AppError::new(
                     axum::http::StatusCode::BAD_REQUEST,
@@ -31,7 +31,7 @@ pub async fn create_block(
             })?;
             match verify_ed25519_signature(&pk_bytes, &msg, &sig_bytes) {
                 Ok(true) => {
-                    // ok
+                    
                 }
                 Ok(false) => {
                     return Err(AppError::new(
@@ -48,7 +48,7 @@ pub async fn create_block(
             }
         }
     }
-    // allow server-generated UUID if not provided
+    
     let row = repo::insert_block(
         &pool,
         payload.id,
@@ -109,7 +109,7 @@ pub async fn update_block(
     Path(id): Path<uuid::Uuid>,
     Json(payload): Json<TangleBlockUpdate>,
 ) -> Result<Json<TangleBlockDto>, AppError> {
-    // decode signature if provided and store bytes
+    
     let sig_bytes_opt: Option<Vec<u8>> = match &payload.signature {
         Some(s) => Some(BASE64_ENGINE.decode(s).map_err(|e| {
             AppError::new(

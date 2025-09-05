@@ -85,7 +85,16 @@ impl From<SqlxError> for AppError {
                         };
                     }
                 }
-                AppError::new(StatusCode::INTERNAL_SERVER_ERROR, db.message().to_string())
+                
+                
+                
+                
+                
+                let code_or_unknown = db.code().map(|c| c.to_string()).unwrap_or_else(|| "<unknown>".to_string());
+                AppError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("databaseError (sqlstate={})", code_or_unknown),
+                )
             }
             other => AppError::new(StatusCode::INTERNAL_SERVER_ERROR, other.to_string()),
         }
