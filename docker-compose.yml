@@ -46,8 +46,6 @@ services:
     image: prom/prometheus:latest
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    ports:
-      - "9090:9090"
     restart: unless-stopped
     depends_on:
       - app
@@ -59,8 +57,6 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
-    ports:
-      - "3003:3000"
     restart: unless-stopped
     depends_on:
       - prometheus

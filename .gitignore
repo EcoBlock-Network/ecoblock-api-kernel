@@ -1,6 +1,8 @@
 /target/
 **/*.rs.bk
 # If this is a binary crate you may want to commit Cargo.lock; adjust as needed
+.env.local
+.env.local.*
 # Cargo.lock
 
 # VS Code
