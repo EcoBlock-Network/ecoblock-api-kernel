@@ -75,12 +75,14 @@ pub async fn build_app(
                         if plugin_name == "auth" && req.method() == Method::POST && req.uri().path().contains("/login") {
                             return next.run(req).await;
                         }
+                        let auth_present = req.headers().get("authorization").is_some();
                         let header_val = req
                             .headers()
                             .get("x-api-key")
                             .and_then(|v| v.to_str().ok())
                             .map(|s| s.to_string());
-                        if header_val.as_deref() != api_key_for_mw.as_deref() {
+                        let api_ok = header_val.as_deref() == api_key_for_mw.as_deref();
+                        if !api_ok && !auth_present {
                             let mut res = Response::new(Body::empty());
                             *res.status_mut() = StatusCode::UNAUTHORIZED;
                             return res;
