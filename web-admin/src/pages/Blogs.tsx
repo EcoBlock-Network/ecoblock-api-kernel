@@ -3,7 +3,7 @@ import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 import { useToast } from '../lib/ToastProvider'
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3000'
+const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
 function getToken(): string | null {
   try { return localStorage.getItem('ecoblock_token') } catch (_) { return null }
