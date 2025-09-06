@@ -72,6 +72,9 @@ pub async fn build_app(
             async move {
                 if api_key_for_mw.is_some() && plugin_name != "health" {
                     if req.method() != Method::OPTIONS {
+                        if plugin_name == "auth" && req.method() == Method::POST && req.uri().path().ends_with("/login") {
+                            return next.run(req).await;
+                        }
                         let header_val = req
                             .headers()
                             .get("x-api-key")
