@@ -125,10 +125,17 @@ pub async fn build_app(
                     "access-control-allow-methods",
                     HeaderValue::from_static("GET,POST,PUT,DELETE,OPTIONS"),
                 );
+                // Only allow specific headers (avoid wildcard) and allow credentials when origin matches
                 res.headers_mut().insert(
                     "access-control-allow-headers",
-                    HeaderValue::from_static("*"),
+                    HeaderValue::from_static("Content-Type, Authorization, x-api-key"),
                 );
+                if allowed_origin.is_some() {
+                    res.headers_mut().insert(
+                        "access-control-allow-credentials",
+                        HeaderValue::from_static("true"),
+                    );
+                }
                 return res;
             }
 
@@ -137,10 +144,16 @@ pub async fn build_app(
                 if let Ok(hv) = HeaderValue::from_str(o) {
                     res.headers_mut().insert("access-control-allow-origin", hv);
                 }
+                // allow credentials only for explicit allowed origins
+                res.headers_mut().insert(
+                    "access-control-allow-credentials",
+                    HeaderValue::from_static("true"),
+                );
             }
+            // Restrict allowed headers explicitly
             res.headers_mut().insert(
                 "access-control-allow-headers",
-                HeaderValue::from_static("*"),
+                HeaderValue::from_static("Content-Type, Authorization, x-api-key"),
             );
             res
         }));

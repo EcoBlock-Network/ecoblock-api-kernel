@@ -21,11 +21,19 @@ export default function Login({ onLogin }: { onLogin: (token: string) => void })
     e.preventDefault()
     setError(null)
     setLoading(true)
+    // basic client-side validation
+    const u = username.trim()
+    const p = password
+    if (!u || !p) {
+      setError('username and password are required')
+      setLoading(false)
+      return
+    }
     try {
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username: u, password: p })
       })
       const text = await res.text()
       if (!res.ok) {
@@ -36,8 +44,8 @@ export default function Login({ onLogin }: { onLogin: (token: string) => void })
       }
       const data = JSON.parse(text)
       const token = data.token || data.access_token || data.accessToken
-      if (!token) { toast.showApiError({ error: 'no token returned' }); setLoading(false); return }
-      try { localStorage.setItem('ecoblock_token', token) } catch (_) {}
+  if (!token) { toast.showApiError({ error: 'no token returned' }); setLoading(false); return }
+  try { sessionStorage.setItem('ecoblock_token', token) } catch (_) {}
       onLogin(token)
       // If redirect is provided, navigate there (simple client-side)
       const redirect = getRedirectTarget()

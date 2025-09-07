@@ -10,12 +10,12 @@ export default function App() {
 
   useEffect(() => {
     try {
-      const t = localStorage.getItem('ecoblock_token')
+  const t = sessionStorage.getItem('ecoblock_token')
       if (t) setToken(t)
       // Support auto-login in dev via VITE_DEV_TOKEN
       const dev = (import.meta.env as any).VITE_DEV_TOKEN
       if (!t && dev) {
-        localStorage.setItem('ecoblock_token', dev)
+  sessionStorage.setItem('ecoblock_token', dev)
         setToken(dev)
       }
     } catch (_) {}
@@ -26,7 +26,7 @@ export default function App() {
   }
 
   function logout() {
-    try { localStorage.removeItem('ecoblock_token') } catch (_) {}
+  try { sessionStorage.removeItem('ecoblock_token') } catch (_) {}
     setToken(null)
   }
 

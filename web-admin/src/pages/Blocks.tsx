@@ -14,7 +14,7 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
 function getToken(): string | null {
   try {
-    return localStorage.getItem('ecoblock_token');
+  return sessionStorage.getItem('ecoblock_token');
   } catch (_) {
     return null;
   }

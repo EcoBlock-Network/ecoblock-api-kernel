@@ -6,7 +6,7 @@ import { useToast } from '../lib/ToastProvider'
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
 function getToken(): string | null {
-  try { return localStorage.getItem('ecoblock_token') } catch (_) { return null }
+  try { return sessionStorage.getItem('ecoblock_token') } catch (_) { return null }
 }
 
 type Blog = {
@@ -75,14 +75,22 @@ export default function Blogs() {
   function closeEditor() { setEditing(null) }
 
   async function saveBlog(b: Blog) {
+    // simple client-side validation
+    const title = (b.title || '').trim()
+    const slug = (b.slug || '').trim()
+    const body = (b.body || '').trim()
+    if (title.length < 3) { toast.showToast('title must be at least 3 characters', 'error'); return }
+    if (!slug) { toast.showToast('slug is required', 'error'); return }
+    if (body.length < 10) { toast.showToast('body must be at least 10 characters', 'error'); return }
+
     const token = getToken()
     const headers: Record<string,string> = { 'Content-Type': 'application/json' }
     if (token) headers['Authorization'] = `Bearer ${token}`
     if (b.id) {
-    const res = await fetch(`${API_BASE}/communication/blog/${b.id}`, { method: 'PUT', headers, body: JSON.stringify({ title: b.title }) })
+    const res = await fetch(`${API_BASE}/communication/blog/${b.id}`, { method: 'PUT', headers, body: JSON.stringify({ title, slug, body }) })
   if (!res.ok) { const data = await res.json().catch(() => null); toast.showApiError(data || await res.text()); return }
     } else {
-    const res = await fetch(`${API_BASE}/communication/blog`, { method: 'POST', headers, body: JSON.stringify(b) })
+    const res = await fetch(`${API_BASE}/communication/blog`, { method: 'POST', headers, body: JSON.stringify({ title, slug, body, author: b.author }) })
   if (!res.ok) { const data = await res.json().catch(() => null); toast.showApiError(data || await res.text()); return }
     }
     closeEditor()
