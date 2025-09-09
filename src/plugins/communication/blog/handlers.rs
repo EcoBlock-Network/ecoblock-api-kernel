@@ -28,6 +28,7 @@ pub async fn create_blog(
         &payload.body,
         &payload.author,
         is_active,
+        payload.image_url.as_deref(),
     )
     .await?;
     Ok(Json(dto))
@@ -76,12 +77,11 @@ pub async fn list_blogs(
     };
 
     let items_sql = format!(
-        "SELECT id, title, slug, body, author, is_active, created_at, updated_at FROM blogs WHERE {} ORDER BY created_at DESC LIMIT ${} OFFSET ${}",
+    "SELECT id, title, slug, body, author, is_active, image_url, created_at, updated_at FROM blogs WHERE {} ORDER BY created_at DESC LIMIT ${} OFFSET ${}",
         where_sql,
         params.len() + 1,
         params.len() + 2
     );
-    // build params bindings manually in handlers, then pass final SQL to repo which will execute
     let mut items_q = sqlx::query_as::<_, BlogDto>(&items_sql);
     for p in &params {
         match p {
@@ -140,7 +140,8 @@ pub async fn update_blog(
         payload.slug,
         payload.body,
         payload.author,
-        payload.is_active,
+    payload.is_active,
+    payload.image_url,
     )
     .await?;
     Ok(Json(dto))

@@ -64,7 +64,6 @@ pub async fn build_app(
             ));
         }
 
-        // API key middleware: require x-api-key for all plugin routes except health when configured
         let api_key_for_mw = api_key.clone();
         let plugin_name = plugin.name().to_string();
         router = router.layer(axum::middleware::from_fn(move |req: Request<Body>, next: Next| {
@@ -89,7 +88,6 @@ pub async fn build_app(
             }
         }));
 
-        // CORS middleware
         router = router.layer(axum::middleware::from_fn(|req: Request<Body>, next: Next| async move {
             let allowed_env = std::env::var("ALLOWED_ORIGINS").ok();
             let allowed_list: Vec<String> = allowed_env
