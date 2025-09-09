@@ -1,22 +1,68 @@
-version: '3.8'
 services:
   db:
     image: postgres:15
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ecoblock
-    ports:
-      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./data/dumps:/dumps
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       retries: 5
+
   app:
     build: .
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
     environment:
       DATABASE_URL: "postgres://postgres:postgres@db:5432/ecoblock"
     ports:
-      - "3000:3000"
+      - "3001:3000"
+    restart: unless-stopped
+
+  webadmin:
+    build:
+      context: ./web-admin
+      dockerfile: Dockerfile
+    ports:
+      - "3002:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - app
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    restart: unless-stopped
+    depends_on:
+      - app
+    # bind to localhost to avoid exposing Prometheus on the public interface
+    ports:
+      - "127.0.0.1:9090:9090"
+
+  grafana:
+    image: grafana/grafana:9.0.0
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    # bind to localhost to avoid exposing Grafana on the public interface
+    ports:
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  db_data:
+  grafana_data:

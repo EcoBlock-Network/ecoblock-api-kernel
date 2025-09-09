@@ -1,7 +1,23 @@
-FROM rust:1.73-slim-bullseye as builder
+FROM debian:bullseye-slim AS builder
+
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends \
+		ca-certificates \
+		curl \
+		build-essential \
+		libssl-dev \
+		pkg-config \
+		libpq-dev \
+		git \
+	&& rm -rf /var/lib/apt/lists/*
+
+ENV RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo PATH="/usr/local/cargo/bin:${PATH}"
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+
 WORKDIR /usr/src/app
 COPY . .
-RUN apt-get update && apt-get install -y libssl-dev pkg-config libpq-dev ca-certificates && rm -rf /var/lib/apt/lists/*
+
 RUN cargo build --release
 
 FROM debian:bullseye-slim

@@ -1,5 +1,5 @@
 global:
-  scrape_interval: 15s        # fréquence de scrapping par défaut
+  scrape_interval: 15s
   scrape_timeout: 10s
   evaluation_interval: 15s
 
@@ -7,7 +7,7 @@ scrape_configs:
   - job_name: 'ecoblock'
     metrics_path: /metrics
     static_configs:
-      - targets: ['127.0.0.1:3000']
+      - targets: ['app:3000']
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance

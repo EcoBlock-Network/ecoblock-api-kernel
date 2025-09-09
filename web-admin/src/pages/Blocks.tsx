@@ -10,11 +10,11 @@ type Block = {
   created_at?: string
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3000'
+const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
 function getToken(): string | null {
   try {
-    return localStorage.getItem('ecoblock_token');
+  return sessionStorage.getItem('ecoblock_token');
   } catch (_) {
     return null;
   }

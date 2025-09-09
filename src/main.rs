@@ -65,27 +65,11 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
-    // API key: read from env or generate a new one and optionally write to file
-    let api_key = match std::env::var("API_KEY") {
-        Ok(k) if !k.is_empty() => Some(k),
-        _ => {
-            // generate a random 32-byte key base64 encoded
-            use rand::RngCore;
-            use base64::engine::general_purpose::STANDARD;
-            use base64::Engine;
-            let mut buf = [0u8; 32];
-            rand::rngs::OsRng.fill_bytes(&mut buf);
-            let k = STANDARD.encode(&buf);
-            // optionally write to file
-            if let Ok(path) = std::env::var("API_KEY_FILE") {
-                let _ = std::fs::write(path, &k);
-            }
-            tracing::info!("generated API key (store securely): {}", k);
-            Some(k)
-        }
-    };
+    // Only use an API key if the `API_KEY` env var is set; do not auto-generate keys at runtime.
+    let api_key = std::env::var("API_KEY").ok().and_then(|k| if k.is_empty() { None } else { Some(k) });
 
-    let mut app: Router = build_app(&plugins_vec, Some(metrics_plugin.clone()), cache, api_key).await;
+    let mut app: Router =
+        build_app(&plugins_vec, Some(metrics_plugin.clone()), cache, api_key).await;
 
     app = app.nest("/metrics", metrics_plugin.router());
 

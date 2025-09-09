@@ -31,7 +31,7 @@ pub async fn get_user(
     pool: PgPool,
     Path(id): Path<Uuid>,
 ) -> Result<Json<UserDto>, AppError> {
-    // try cache first
+    
     if let Some(cache) = cache_opt.as_ref().map(|c| c.clone()) {
         let key = format!("user:{}", id);
         let maybe_bytes_res = cache.get(&key).await;
@@ -62,7 +62,7 @@ pub async fn update_user(
     let new_username = payload.username.unwrap_or(current.username);
     let new_email = payload.email.unwrap_or(current.email);
     let updated = repo::update_user(&pool, id, &new_username, &new_email).await?;
-    // invalidate cache
+    
     if let Some(cache) = cache_opt.as_ref().map(|c| c.clone()) {
         let key = format!("user:{}", id);
         let _ = cache.delete(&key).await;
@@ -131,6 +131,6 @@ pub async fn create_admin(
         true,
     )
     .await?;
-    // We can't invalidate by id here since we don't know it yet; caller can fetch and cache after creation.
+    
     Ok(Json(dto))
 }

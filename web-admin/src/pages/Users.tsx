@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { useToast } from '../lib/ToastProvider'
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3000'
+const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
 function getToken(): string | null {
-  try { return localStorage.getItem('ecoblock_token') } catch (_) { return null }
+  try { return sessionStorage.getItem('ecoblock_token') } catch (_) { return null }
 }
 
 type User = {
@@ -42,13 +42,21 @@ export default function Users() {
   useEffect(() => { fetchList() }, [])
 
   async function createUser() {
+    // basic client-side validation
+    const u = username.trim()
+    const e = email.trim()
+    const p = password
+    if (u.length < 3) { toast.showToast('username must be at least 3 characters', 'error'); return }
+    if (!e.includes('@')) { toast.showToast('invalid email', 'error'); return }
+    if (p.length < 8) { toast.showToast('password must be at least 8 characters', 'error'); return }
+
     setCreating(true)
     toast.setLoading(true)
     try {
       const token = getToken()
       const headers: Record<string,string> = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
-      const payload = { username, email, password }
+      const payload = { username: u, email: e, password: p }
       const res = await fetch(`${API_BASE}/users`, { method: 'POST', headers, body: JSON.stringify(payload) })
     if (!res.ok) { const data = await res.json().catch(() => null); toast.showApiError(data || await res.text()); return }
       setUsername(''); setEmail(''); setPassword('')
@@ -59,12 +67,20 @@ export default function Users() {
   }
 
   async function createAdmin() {
+    // basic client-side validation for admin creation
+    const u = username.trim()
+    const e = email.trim()
+    const p = password
+    if (u.length < 3) { toast.showToast('username must be at least 3 characters', 'error'); return }
+    if (!e.includes('@')) { toast.showToast('invalid email', 'error'); return }
+    if (p.length < 8) { toast.showToast('password must be at least 8 characters', 'error'); return }
+
     setCreatingAdmin(true); toast.setLoading(true)
     try {
       const token = getToken()
       const headers: Record<string,string> = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
-      const payload = { username, email, password }
+      const payload = { username: u, email: e, password: p }
       const res = await fetch(`${API_BASE}/users/admin`, { method: 'POST', headers, body: JSON.stringify(payload) })
     if (!res.ok) { const data = await res.json().catch(() => null); toast.showApiError(data || await res.text()); return }
       setUsername(''); setEmail(''); setPassword('')
