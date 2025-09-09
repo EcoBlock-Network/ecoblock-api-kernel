@@ -20,7 +20,7 @@ async fn communication_blog_crud_and_list() -> anyhow::Result<()> {
 
     let create = client
         .post(&format!("{}/communication/blog", base))
-        .json(&serde_json::json!({"title":"Hello","slug":"hello","body":"body","author":"alice"}))
+        .json(&serde_json::json!({"title":"Hello","slug":"hello","body":"body","author":"alice","image_url":"http://example.test/media.jpg"}))
         .send()
         .await?;
     let status = create.status();
@@ -33,6 +33,8 @@ async fn communication_blog_crud_and_list() -> anyhow::Result<()> {
         assert_eq!(status, StatusCode::OK);
     }
     let created: Value = serde_json::from_str(&body_text)?;
+    // ensure image_url is returned on create
+    assert_eq!(created["image_url"].as_str(), Some("http://example.test/media.jpg"));
     let id = created["id"].as_str().unwrap().to_string();
 
     // list
@@ -66,6 +68,9 @@ async fn communication_blog_crud_and_list() -> anyhow::Result<()> {
         .send()
         .await?;
     assert_eq!(one.status(), StatusCode::OK);
+    // ensure image_url is present on get
+    let one_body: Value = one.json().await?;
+    assert_eq!(one_body["image_url"].as_str(), Some("http://example.test/media.jpg"));
 
     // update
     let upd = client
